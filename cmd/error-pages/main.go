@@ -73,18 +73,17 @@ func serveCtx(ctx context.Context, getenv func(string) (string, bool), stderr io
 	if err != nil {
 		return fail(stderr, err)
 	}
-	cat, err := texts.Load(web.FS, cfg.Theme, cfg.TextsDir, cfg.Languages)
-	if err != nil {
-		return fail(stderr, err)
+	catalog := func(theme string) (texts.Catalog, error) {
+		return texts.Load(web.FS, theme, cfg.TextsDir, cfg.Languages)
 	}
-	r, err := render.New(cfg, cat, web.FS, version, time.Now)
+	rs, err := render.NewThemes(cfg, catalog, web.FS, version, time.Now)
 	if err != nil {
 		return fail(stderr, err)
 	}
 	m := maintenance.New(cfg.Maintenance, cfg.MaintenanceUntil, cfg.MaintenanceFile, time.Now)
 
 	srv := &http.Server{
-		Handler:           server.New(cfg, r, m, time.Now),
+		Handler:           server.New(cfg, rs, m, time.Now, nil),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
@@ -95,7 +94,7 @@ func serveCtx(ctx context.Context, getenv func(string) (string, bool), stderr io
 		return fail(stderr, err)
 	}
 	log := slog.New(slog.NewJSONHandler(stderr, nil))
-	log.Info("starting", "theme", cfg.Theme, "languages", cfg.Languages,
+	log.Info("starting", "themes", cfg.Themes, "languages", cfg.Languages,
 		"listen", ln.Addr().String(), "version", version)
 	if ready != nil {
 		ready(ln.Addr())

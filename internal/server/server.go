@@ -4,9 +4,10 @@ package server
 
 import (
 	"bytes"
-	"crypto/rand"
+	crand "crypto/rand"
 	"encoding/hex"
 	"log/slog"
+	"math/rand/v2"
 	"net/http"
 	"strconv"
 	"strings"
@@ -28,21 +29,41 @@ const (
 )
 
 type server struct {
-	cfg    config.Config
-	render *render.Renderer
-	mode   *maintenance.Mode
-	now    func() time.Time
-	log    *slog.Logger
+	cfg     config.Config
+	renders []*render.Renderer // one per configured theme, never empty
+	mode    *maintenance.Mode
+	now     func() time.Time
+	intn    func(n int) int
+	log     *slog.Logger
 }
 
-// New returns the handler. now is the clock for details and Retry-After;
-// nil means time.Now.
-func New(cfg config.Config, r *render.Renderer, m *maintenance.Mode, now func() time.Time) http.Handler {
-	s := &server{cfg: cfg, render: r, mode: m, now: now, log: slog.Default()}
+// New returns the handler. rs holds one renderer per configured theme and
+// must not be empty; with more than one, every HTML response uses a theme
+// drawn by intn, which returns a number in [0, n). nil intn means
+// math/rand/v2's IntN. now is the clock for details and Retry-After; nil
+// means time.Now.
+func New(cfg config.Config, rs []*render.Renderer, m *maintenance.Mode, now func() time.Time, intn func(n int) int) http.Handler {
+	if len(rs) == 0 {
+		panic("server: no renderer")
+	}
+	s := &server{cfg: cfg, renders: rs, mode: m, now: now, intn: intn, log: slog.Default()}
 	if now == nil {
 		s.now = time.Now
 	}
+	if intn == nil {
+		s.intn = rand.IntN
+	}
 	return s
+}
+
+// renderer returns the renderer for a response. Only HTML depends on the
+// theme, so only HTML draws one, and only when there is a choice; other
+// formats use the first theme.
+func (s *server) renderer(f format) *render.Renderer {
+	if f != formatHTML || len(s.renders) == 1 {
+		return s.renders[0]
+	}
+	return s.renders[s.intn(len(s.renders))]
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -188,16 +209,18 @@ func (s *server) page(w http.ResponseWriter, req *http.Request) {
 		ct  string
 		err error
 	)
-	switch negotiateFormat(req.Header.Get("Accept")) {
+	f := negotiateFormat(req.Header.Get("Accept"))
+	r := s.renderer(f)
+	switch f {
 	case formatJSON:
-		ct, err = "application/json; charset=utf-8", s.render.JSON(&buf, rr)
+		ct, err = "application/json; charset=utf-8", r.JSON(&buf, rr)
 	case formatPlain:
-		ct, err = "text/plain; charset=utf-8", s.render.Plain(&buf, rr)
+		ct, err = "text/plain; charset=utf-8", r.Plain(&buf, rr)
 	default:
-		ct, err = "text/html; charset=utf-8", s.render.HTML(&buf, rr)
+		ct, err = "text/html; charset=utf-8", r.HTML(&buf, rr)
 	}
 	if err != nil {
-		s.log.Error("render failed", "page", page.Key, "err", err)
+		s.log.Error("render failed", "page", page.Key, "theme", r.Theme(), "err", err)
 		secure(w.Header())
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -207,7 +230,7 @@ func (s *server) page(w http.ResponseWriter, req *http.Request) {
 	secure(h)
 	h.Set("Content-Type", ct)
 	h.Set("Content-Length", strconv.Itoa(buf.Len()))
-	h.Set("Content-Security-Policy", s.render.CSP())
+	h.Set("Content-Security-Policy", r.CSP())
 	h.Set("Content-Language", language)
 	h.Set("Vary", "Accept, Accept-Language")
 	if isMaintenance && !state.Until.IsZero() {
@@ -237,7 +260,7 @@ func (s *server) requestID(req *http.Request) string {
 		return id
 	}
 	var b [6]byte
-	_, _ = rand.Read(b[:]) // crypto/rand does not fail on supported platforms
+	_, _ = crand.Read(b[:]) // crypto/rand does not fail on supported platforms
 	return hex.EncodeToString(b[:])
 }
 

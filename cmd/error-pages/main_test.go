@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -186,5 +187,50 @@ func TestHealthcheckDoesNotFollowRedirects(t *testing.T) {
 	u, _ := url.Parse(srv.URL)
 	if code, _, _ := runCmd(t, map[string]string{"LISTEN": u.Host}, "healthcheck"); code != 1 {
 		t.Fatalf("redirect: code %d, want 1", code)
+	}
+}
+
+// TestServeCtxThemeList serves a theme list and expects both themes within
+// 40 page loads (a miss has a chance of about 2^-39).
+func TestServeCtxThemeList(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	addr := make(chan net.Addr, 1)
+	var errb bytes.Buffer
+	done := make(chan int, 1)
+	e := env(map[string]string{"LISTEN": "127.0.0.1:0", "THEME": "glass,terminal", "MAINTENANCE_FILE": filepath.Join(t.TempDir(), "m")})
+	go func() { done <- serveCtx(ctx, e, &errb, func(a net.Addr) { addr <- a }) }()
+
+	var a net.Addr
+	select {
+	case a = <-addr:
+	case code := <-done:
+		t.Fatalf("serveCtx returned %d before listening: %s", code, errb.String())
+	case <-time.After(5 * time.Second):
+		t.Fatal("server did not start")
+	}
+	seen := map[string]bool{}
+	for i := 0; i < 40 && len(seen) < 2; i++ {
+		resp, err := http.Get("http://" + a.String() + "/404")
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		for _, theme := range []string{"glass", "terminal"} {
+			if strings.Contains(string(body), `class="ep ep-theme-`+theme+`"`) {
+				seen[theme] = true
+			}
+		}
+	}
+	if len(seen) != 2 {
+		t.Errorf("themes seen: %v", seen)
+	}
+	cancel()
+	if code := <-done; code != 0 {
+		t.Fatalf("exit code %d: %s", code, errb.String())
+	}
+	if !strings.Contains(errb.String(), `"themes":["glass","terminal"]`) {
+		t.Errorf("starting log lacks the theme list: %s", errb.String())
 	}
 }

@@ -28,6 +28,12 @@ type env map[string]string
 // (nil means the file does not exist).
 func newHandler(t *testing.T, e env, flag *string) http.Handler {
 	t.Helper()
+	return newHandlerPick(t, e, flag, nil)
+}
+
+// newHandlerPick is newHandler with the theme pick source intn.
+func newHandlerPick(t *testing.T, e env, flag *string, intn func(int) int) http.Handler {
+	t.Helper()
 	file := filepath.Join(t.TempDir(), "maintenance")
 	if flag != nil {
 		if err := os.WriteFile(file, []byte(*flag), 0o644); err != nil {
@@ -39,17 +45,14 @@ func newHandler(t *testing.T, e env, flag *string) http.Handler {
 	if err != nil {
 		t.Fatalf("config.Load: %v", err)
 	}
-	cat, err := texts.Load(web.FS, cfg.Theme, "", cfg.Languages)
-	if err != nil {
-		t.Fatalf("texts.Load: %v", err)
-	}
+	catalog := func(theme string) (texts.Catalog, error) { return texts.Load(web.FS, theme, "", cfg.Languages) }
 	now := func() time.Time { return clock }
-	r, err := render.New(cfg, cat, web.FS, "1.2.3", now)
+	rs, err := render.NewThemes(cfg, catalog, web.FS, "1.2.3", now)
 	if err != nil {
-		t.Fatalf("render.New: %v", err)
+		t.Fatalf("render.NewThemes: %v", err)
 	}
 	m := maintenance.New(cfg.Maintenance, cfg.MaintenanceUntil, cfg.MaintenanceFile, now)
-	return New(cfg, r, m, now)
+	return New(cfg, rs, m, now, intn)
 }
 
 func merge(a, b env) env {
@@ -443,4 +446,108 @@ func TestErrorAndHealthzHeaders(t *testing.T) {
 			t.Errorf("healthz %s = %q, want %q", k, got, v)
 		}
 	}
+}
+
+var bodyTheme = regexp.MustCompile(`<body class="ep ep-theme-([a-z]+)">`)
+
+// checkCSP fails unless rec's CSP allows exactly its own inline blocks.
+func checkCSP(t *testing.T, rec *httptest.ResponseRecorder) {
+	t.Helper()
+	body := rec.Body.String()
+	css, js := styleBlock.FindAllStringSubmatch(body, -1), scriptBlock.FindAllStringSubmatch(body, -1)
+	if len(css) != 1 || len(js) != 1 {
+		t.Fatalf("%d style and %d script blocks", len(css), len(js))
+	}
+	want := "default-src 'none'; img-src data:; font-src data:; style-src 'sha256-" + sha(css[0][1]) +
+		"'; script-src 'sha256-" + sha(js[0][1]) + "'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+	if got := rec.Header().Get("Content-Security-Policy"); got != want {
+		t.Errorf("CSP = %q\nwant  %q", got, want)
+	}
+}
+
+// seq returns a pick source that yields picks in turn and records each n.
+func seq(picks []int, ns *[]int) func(int) int {
+	i := 0
+	return func(n int) int {
+		*ns = append(*ns, n)
+		p := picks[i%len(picks)]
+		i++
+		return p
+	}
+}
+
+func TestRandomThemePerRequest(t *testing.T) {
+	var ns []int
+	h := newHandlerPick(t, env{"THEME": "glass,terminal,status"}, nil, seq([]int{1, 2}, &ns))
+	for i, want := range []string{"terminal", "status"} {
+		rec := do(h, "GET", "/maintenance", map[string]string{"Accept-Language": "de"})
+		m := bodyTheme.FindStringSubmatch(rec.Body.String())
+		if m == nil || m[1] != want {
+			t.Fatalf("request %d: theme %v, want %s", i, m, want)
+		}
+		checkCSP(t, rec)
+		if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+			t.Errorf("request %d: Cache-Control = %q", i, got)
+		}
+		if rec.Code != 503 {
+			t.Errorf("request %d: status %d", i, rec.Code)
+		}
+	}
+	if len(ns) != 2 || ns[0] != 3 || ns[1] != 3 {
+		t.Errorf("pick source called with %v, want [3 3]", ns)
+	}
+}
+
+func TestRandomThemeAll(t *testing.T) {
+	var ns []int
+	picks := make([]int, len(config.Themes))
+	for i := range picks {
+		picks[i] = i
+	}
+	h := newHandlerPick(t, env{"THEME": "random"}, nil, seq(picks, &ns))
+	for _, want := range config.Themes {
+		rec := do(h, "GET", "/404", nil)
+		if m := bodyTheme.FindStringSubmatch(rec.Body.String()); m == nil || m[1] != want {
+			t.Fatalf("theme %v, want %s", m, want)
+		}
+		checkCSP(t, rec)
+	}
+}
+
+// TestRandomThemeNonHTML checks that JSON and plain responses draw no theme
+// and are the same as with a single theme.
+func TestRandomThemeNonHTML(t *testing.T) {
+	var ns []int
+	multi := newHandlerPick(t, env{"THEME": "terminal,glass"}, nil, seq([]int{1}, &ns))
+	single := newHandler(t, env{"THEME": "terminal"}, nil)
+	for _, accept := range []string{"application/json", "text/plain"} {
+		a := do(multi, "GET", "/502", map[string]string{"Accept": accept})
+		b := do(single, "GET", "/502", map[string]string{"Accept": accept})
+		if a.Body.String() != b.Body.String() || a.Code != b.Code {
+			t.Errorf("%s: %d %q vs %d %q", accept, a.Code, a.Body, b.Code, b.Body)
+		}
+		for _, k := range []string{"Content-Type", "Content-Security-Policy", "Cache-Control"} {
+			if a.Header().Get(k) != b.Header().Get(k) {
+				t.Errorf("%s: %s differs: %q vs %q", accept, k, a.Header().Get(k), b.Header().Get(k))
+			}
+		}
+	}
+	if len(ns) != 0 {
+		t.Errorf("pick source called %d times for non-HTML responses", len(ns))
+	}
+}
+
+// TestSingleThemeDrawsNothing is the single-theme regression: the pick
+// source is never called and every page uses the one theme.
+func TestSingleThemeDrawsNothing(t *testing.T) {
+	never := func(int) int { t.Fatal("pick source called with a single theme"); return 0 }
+	h := newHandlerPick(t, env{"THEME": "classic"}, nil, never)
+	for _, target := range []string{"/404", "/maintenance", "/500"} {
+		rec := do(h, "GET", target, nil)
+		if m := bodyTheme.FindStringSubmatch(rec.Body.String()); m == nil || m[1] != "classic" {
+			t.Fatalf("%s: theme %v", target, m)
+		}
+		checkCSP(t, rec)
+	}
+	do(h, "GET", "/404", map[string]string{"Accept": "application/json"})
 }

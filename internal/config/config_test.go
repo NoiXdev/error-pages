@@ -125,7 +125,12 @@ func TestValidationErrors(t *testing.T) {
 		env     map[string]string
 		wantErr string // empty: must pass
 	}{
-		{"unknown theme", map[string]string{"THEME": "neon"}, "THEME"},
+		{"unknown theme", map[string]string{"THEME": "neon"}, "config: THEME"},
+		{"unknown theme in list", map[string]string{"THEME": "glass,neon"}, "config: THEME"},
+		{"random mixed with names", map[string]string{"THEME": "random,glass"}, "config: THEME"},
+		{"empty theme list", map[string]string{"THEME": " , "}, "config: THEME"},
+		{"blank theme", map[string]string{"THEME": "  "}, "config: THEME"},
+		{"empty theme entry", map[string]string{"THEME": "glass,,clean"}, "config: THEME"},
 		{"unknown language", map[string]string{"LANGUAGES": "en,xx"}, "LANGUAGES"},
 		{"duplicate language", map[string]string{"LANGUAGES": "en,de,en"}, "LANGUAGES"},
 		{"empty language entry", map[string]string{"LANGUAGES": "en,,de"}, "LANGUAGES"},
@@ -226,5 +231,63 @@ func TestEnvLanguagesReplaceFile(t *testing.T) {
 	c, err := Load(env(map[string]string{"CONFIG_FILE": p, "LANGUAGES": "en,de"}))
 	if err != nil || !reflect.DeepEqual(c.Languages, []string{"en", "de"}) {
 		t.Fatalf("err=%v languages=%v", err, c.Languages)
+	}
+}
+
+func TestThemeList(t *testing.T) {
+	tests := []struct {
+		name, theme string
+		want        []string
+	}{
+		{"single", "terminal", []string{"terminal"}},
+		{"normalized single", " Clean ", []string{"clean"}},
+		{"list keeps order", "glass, Terminal ,status", []string{"glass", "terminal", "status"}},
+		{"duplicates removed", "status,glass,STATUS,glass", []string{"status", "glass"}},
+		{"random", "random", Themes},
+		{"random normalized", " RANDOM ", Themes},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := Load(env(map[string]string{"THEME": tc.theme}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(c.Themes, tc.want) {
+				t.Errorf("Themes = %v, want %v", c.Themes, tc.want)
+			}
+			if c.Theme != tc.want[0] {
+				t.Errorf("Theme = %q, want %q", c.Theme, tc.want[0])
+			}
+		})
+	}
+}
+
+func TestThemeListFromFile(t *testing.T) {
+	p := writeFile(t, "theme: clean,glass\n")
+	c, err := Load(env(map[string]string{"CONFIG_FILE": p}))
+	if err != nil || !reflect.DeepEqual(c.Themes, []string{"clean", "glass"}) {
+		t.Fatalf("err=%v themes=%v", err, c.Themes)
+	}
+	p = writeFile(t, "theme: \"\"\n")
+	if _, err := Load(env(map[string]string{"CONFIG_FILE": p})); err == nil || !strings.HasPrefix(err.Error(), "config: THEME") {
+		t.Fatalf("empty YAML theme: err=%v", err)
+	}
+}
+
+func TestRandomIsACopy(t *testing.T) {
+	c, err := Load(env(map[string]string{"THEME": "random"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Themes[0] = "changed"
+	if Themes[0] == "changed" {
+		t.Fatal("Themes shares its backing array with the package list")
+	}
+}
+
+func TestDefaultThemeList(t *testing.T) {
+	c, err := Load(env(nil))
+	if err != nil || !reflect.DeepEqual(c.Themes, []string{"glass"}) {
+		t.Fatalf("err=%v themes=%v", err, c.Themes)
 	}
 }

@@ -180,6 +180,32 @@ func New(cfg config.Config, cat texts.Catalog, assets fs.FS, version string, now
 	return r, nil
 }
 
+// NewThemes builds one Renderer per entry of cfg.Themes, in that order.
+// Each has its own template set, texts and inline blocks, built by New with
+// cfg.Theme set to that theme. catalog loads the text catalog of a theme.
+func NewThemes(cfg config.Config, catalog func(theme string) (texts.Catalog, error), assets fs.FS, version string, now func() time.Time) ([]*Renderer, error) {
+	rs := make([]*Renderer, 0, len(cfg.Themes))
+	for _, theme := range cfg.Themes {
+		c := cfg
+		c.Theme = theme
+		cat, err := catalog(theme)
+		if err != nil {
+			return nil, fmt.Errorf("render: theme %s: %w", theme, err)
+		}
+		r, err := New(c, cat, assets, version, now)
+		if err != nil {
+			return nil, err
+		}
+		rs = append(rs, r)
+	}
+	return rs, nil
+}
+
+// Theme returns the name of the theme this renderer renders.
+func (r *Renderer) Theme() string {
+	return r.cfg.Theme
+}
+
 // fill returns a copy of cat in which every enabled language has the same
 // key set: a key missing in a language takes the default language's text,
 // or "" when the default lacks it too. Server and client then agree on what

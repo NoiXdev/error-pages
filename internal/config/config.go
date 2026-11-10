@@ -21,6 +21,9 @@ import (
 // Themes lists the available theme names.
 var Themes = []string{"glass", "terminal", "classic", "status", "clean"}
 
+// randomTheme is the THEME value that stands for all of Themes.
+const randomTheme = "random"
+
 var allowedLanguages = []string{"de", "en", "pl", "fr"}
 
 // Link is one menu link in the page footer or menu.
@@ -52,6 +55,10 @@ func (l Link) Href(lang string) string {
 
 // Config is the validated service configuration.
 type Config struct {
+	// Themes are the themes to pick from per request, in order and without
+	// duplicates; one entry means a fixed theme. Theme is Themes[0], for
+	// code that needs a single theme.
+	Themes                              []string
 	Theme, DefaultPage, DefaultLanguage string
 	Languages                           []string
 
@@ -118,6 +125,7 @@ func Load(getenv func(string) (string, bool)) (Config, error) {
 
 	c := defaults()
 	var until string
+	theme := c.Theme
 
 	if path, ok := get("CONFIG_FILE"); ok {
 		raw, err := os.ReadFile(path)
@@ -130,7 +138,7 @@ func Load(getenv func(string) (string, bool)) (Config, error) {
 		if err := dec.Decode(&f); err != nil && !errors.Is(err, io.EOF) {
 			return Config{}, fmt.Errorf("config: CONFIG_FILE %s: %w", path, err)
 		}
-		setIf(&c.Theme, f.Theme)
+		setIf(&theme, f.Theme)
 		setIf(&c.DefaultPage, f.DefaultPage)
 		if f.Languages != nil {
 			c.Languages = f.Languages
@@ -158,7 +166,7 @@ func Load(getenv func(string) (string, bool)) (Config, error) {
 		key string
 		dst *string
 	}{
-		{"THEME", &c.Theme},
+		{"THEME", &theme},
 		{"DEFAULT_PAGE", &c.DefaultPage},
 		{"DEFAULT_LANGUAGE", &c.DefaultLanguage},
 		{"COPYRIGHT_NAME", &c.CopyrightName},
@@ -207,10 +215,38 @@ func Load(getenv func(string) (string, bool)) (Config, error) {
 		c.Links = links
 	}
 
-	if err := c.validate(until); err != nil {
+	if err := c.validate(theme, until); err != nil {
 		return Config{}, err
 	}
 	return c, nil
+}
+
+// parseThemes reads a THEME value: one theme name, a comma-separated list
+// of names, or "random" for all of Themes. Entries are trimmed and
+// lowercased; duplicates are dropped and the first occurrence keeps its place.
+func parseThemes(raw string) ([]string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, fmt.Errorf("no theme given (use a theme name, a comma-separated list or %s)", randomTheme)
+	}
+	var out []string
+	for _, t := range strings.Split(raw, ",") {
+		t = strings.ToLower(strings.TrimSpace(t))
+		switch {
+		case t == "":
+			return nil, fmt.Errorf("empty entry in %q", raw)
+		case t != randomTheme && !contains(Themes, t):
+			return nil, fmt.Errorf("unknown theme %q (allowed: %s, or %s)", t, strings.Join(Themes, ", "), randomTheme)
+		case !contains(out, t):
+			out = append(out, t)
+		}
+	}
+	if contains(out, randomTheme) {
+		if len(out) > 1 {
+			return nil, fmt.Errorf("%s cannot be combined with theme names", randomTheme)
+		}
+		return append([]string(nil), Themes...), nil
+	}
+	return out, nil
 }
 
 func parseBool(s string) (bool, error) {
@@ -232,10 +268,12 @@ func contains(list []string, s string) bool {
 	return false
 }
 
-func (c *Config) validate(until string) error {
-	if !contains(Themes, c.Theme) {
-		return fmt.Errorf("config: THEME: unknown theme %q (allowed: %s)", c.Theme, strings.Join(Themes, ", "))
+func (c *Config) validate(theme, until string) error {
+	themes, err := parseThemes(theme)
+	if err != nil {
+		return fmt.Errorf("config: THEME: %w", err)
 	}
+	c.Themes, c.Theme = themes, themes[0]
 
 	langs := make([]string, 0, len(c.Languages))
 	for _, l := range c.Languages {

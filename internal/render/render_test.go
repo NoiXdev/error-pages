@@ -3,6 +3,7 @@ package render
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -541,5 +542,65 @@ func TestThemesDoNotLeak(t *testing.T) {
 	}
 	if byTheme["glass"].CSP() == byTheme["terminal"].CSP() {
 		t.Error("glass and terminal share one CSP")
+	}
+}
+
+func loadCatalog(cfg config.Config) func(string) (texts.Catalog, error) {
+	return func(theme string) (texts.Catalog, error) {
+		return texts.Load(web.FS, theme, "", cfg.Languages)
+	}
+}
+
+// TestNewThemes builds the renderers for a theme list in one process, as a
+// random-theme setup does, and checks that each keeps its own templates
+// (terminal's ep-sep override), inline blocks and CSP.
+func TestNewThemes(t *testing.T) {
+	cfg := defaultConfig(t)
+	cfg.CopyrightName = "noidee"
+	cfg.Themes = []string{"glass", "terminal"}
+	rs, err := NewThemes(cfg, loadCatalog(cfg), web.FS, "1.2.3", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rs) != 2 || rs[0].Theme() != "glass" || rs[1].Theme() != "terminal" {
+		t.Fatalf("renderers = %d", len(rs))
+	}
+	for _, r := range rs {
+		out := renderHTML(t, r, Request{Page: page(t, "404"), Lang: "en"})
+		terminal := r.Theme() == "terminal"
+		if got := strings.Contains(out, "noidee — v1.2.3"); got != terminal {
+			t.Errorf("%s: terminal separator = %v", r.Theme(), got)
+		}
+		if got := strings.Contains(out, "noidee · v1.2.3"); got == terminal {
+			t.Errorf("%s: default separator = %v", r.Theme(), got)
+		}
+		if !strings.Contains(out, "body.ep-theme-"+r.Theme()) {
+			t.Errorf("%s: own stylesheet missing", r.Theme())
+		}
+		css, js := inlineBlocks(t, out)
+		want := "default-src 'none'; img-src data:; font-src data:; style-src 'sha256-" + sha(css) +
+			"'; script-src 'sha256-" + sha(js) + "'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+		if r.CSP() != want {
+			t.Errorf("%s: CSP does not match its inline blocks", r.Theme())
+		}
+	}
+	if rs[0].CSP() == rs[1].CSP() {
+		t.Error("glass and terminal share one CSP")
+	}
+}
+
+func TestNewThemesPassesThemeToCatalog(t *testing.T) {
+	cfg := defaultConfig(t)
+	cfg.Themes = []string{"status", "clean"}
+	var asked []string
+	_, err := NewThemes(cfg, func(theme string) (texts.Catalog, error) {
+		asked = append(asked, theme)
+		return texts.Load(web.FS, theme, "", cfg.Languages)
+	}, web.FS, "1", nil)
+	if err != nil || strings.Join(asked, ",") != "status,clean" {
+		t.Fatalf("err=%v asked=%v", err, asked)
+	}
+	if _, err := NewThemes(cfg, func(string) (texts.Catalog, error) { return nil, errors.New("boom") }, web.FS, "1", nil); err == nil {
+		t.Error("catalog error ignored")
 	}
 }
