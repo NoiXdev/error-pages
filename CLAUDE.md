@@ -17,18 +17,23 @@ embedded, shipped as a `scratch` Docker image (`noixdev/error-pages`). Module pa
   variables (`THEME`, `LANGUAGES`, `DEFAULT_LANGUAGE`, `DEFAULT_PAGE`,
   `SEND_SAME_HTTP_CODE`, `SHOW_DETAILS`, `SHOW_FOOTER`, `SHOW_VERSION`,
   `COPYRIGHT_NAME`, `COPYRIGHT_URL`, `LINKS`, `MAINTENANCE`, `MAINTENANCE_FILE`,
-  `MAINTENANCE_UNTIL`, `TEXTS_DIR`, `LISTEN`). Validation lives here.
+  `MAINTENANCE_UNTIL`, `TEXTS_DIR`, `LISTEN`). Validation lives here. `THEME` is a
+  name, a comma-separated list or `random` (all of `Themes`); `Config.Themes` holds
+  the list and `Config.Theme` its first entry.
 - `internal/pages/`: page registry (codes, class pages `4xx`/`5xx`, `internal`,
   `maintenance`).
 - `internal/lang/`: language negotiation (`?lang=`, `Accept-Language`, default).
 - `internal/texts/`: text catalogue (built-in locales, theme locales, operator
   overrides from `TEXTS_DIR`).
 - `internal/maintenance/`: maintenance flag file and `Switch`.
-- `internal/render/`: HTML, JSON and plain-text rendering. `inline.go` builds the
-  configured theme's inline CSS/JS and the matching CSP once at startup; `themeFonts`
-  lists the bundled fonts each theme uses.
+- `internal/render/`: HTML, JSON and plain-text rendering. `NewThemes` builds one
+  `Renderer` per configured theme (own template set, texts, inline blocks, CSP).
+  `inline.go` builds a theme's inline CSS/JS and the matching CSP once at startup;
+  `themeFonts` lists the bundled fonts each theme uses.
 - `internal/server/`: HTTP handler: `/<code>.html`, `/healthz`, content negotiation
-  (q-aware `Accept`), security headers. No asset files are served.
+  (q-aware `Accept`), security headers. No asset files are served. With several
+  themes it draws one per HTML response (injectable `intn`, default `math/rand/v2`)
+  and sends that renderer's CSP; JSON and plain text always use the first theme.
 - `web/`: embedded assets: `locales/` (all page texts), `templates/layout.html.tmpl`,
   `themes/<theme>/` (template, CSS, optional JS), `static/` (shared CSS, JS, fonts with
   one `@font-face` stylesheet per family).

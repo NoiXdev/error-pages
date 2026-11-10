@@ -113,7 +113,7 @@ Everything is configured with environment variables, or with a YAML file named b
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `THEME` | `glass` | `glass`, `terminal`, `classic`, `status` or `clean` |
+| `THEME` | `glass` | `glass`, `terminal`, `classic`, `status` or `clean`; a comma-separated list, or `random` |
 | `LANGUAGES` | `de,en,pl,fr` | Comma-separated languages on offer |
 | `DEFAULT_LANGUAGE` | `en` | Used when nothing else matches; must be in `LANGUAGES` |
 | `DEFAULT_PAGE` | `404` | Page for requests that name no error code |
@@ -124,6 +124,12 @@ Everything is configured with environment variables, or with a YAML file named b
 | `LINKS` | empty | Footer links as JSON |
 | `MAINTENANCE`, `MAINTENANCE_UNTIL` | off | Start in maintenance mode, optionally until a time |
 | `LISTEN` | `:8080` | Address the server listens on |
+
+### Random theme
+
+Set `THEME=random` to show a different theme on every page load, picked at random
+from all five. A list such as `THEME=glass,terminal,status` picks from those themes
+only. Nothing is stored: no cookie, and reloading the page may show another theme.
 
 The full reference, including links, custom texts and every option, is in the
 documentation: <https://docs.noix.dev/error-pages/>.
