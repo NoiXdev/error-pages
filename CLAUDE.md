@@ -104,6 +104,7 @@ and pushes `linux/amd64,linux/arm64`, tags and releases. The first release is
 `bump=major` with `prerelease_id=rc`, giving `1.0.0-rc.1`. Needs
 `vars.DOCKERHUB_NAMESPACE=noixdev`, `vars.DOCKERHUB_IMAGE=error-pages`, and secrets
 `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (optional: `DISCORD_WEBHOOK_RELEASE_NOTIFICATION`).
-GitHub Actions are pinned to full commit SHAs; Docker base images are referenced by tag
-(`golang:1.27-alpine`, `scratch`), not by digest. The Dockerfile cross-compiles on
+GitHub Actions are pinned to full commit SHAs. The build image (`golang:1.27-alpine`) is
+pinned by the digest of its multi-arch index and bumped by Dependabot's `docker`
+ecosystem; the final stage is `scratch`. The Dockerfile cross-compiles on
 `$BUILDPLATFORM`.
