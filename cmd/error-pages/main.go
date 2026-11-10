@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -62,6 +61,14 @@ func run(args []string, getenv func(string) (string, bool), stdout, stderr io.Wr
 }
 
 func serve(getenv func(string) (string, bool), stderr io.Writer) int {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
+	return serveCtx(ctx, getenv, stderr, nil)
+}
+
+// serveCtx runs the server until ctx is done, then shuts it down. ready,
+// if not nil, is called with the bound address once the server listens.
+func serveCtx(ctx context.Context, getenv func(string) (string, bool), stderr io.Writer, ready func(net.Addr)) int {
 	cfg, err := config.Load(getenv)
 	if err != nil {
 		return fail(stderr, err)
@@ -76,24 +83,26 @@ func serve(getenv func(string) (string, bool), stderr io.Writer) int {
 	}
 	m := maintenance.New(cfg.Maintenance, cfg.MaintenanceUntil, cfg.MaintenanceFile, time.Now)
 
-	log := slog.New(slog.NewJSONHandler(stderr, nil))
 	srv := &http.Server{
-		Addr:              cfg.Listen,
 		Handler:           server.New(cfg, r, m, time.Now),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
 		MaxHeaderBytes:    16 << 10,
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
-	defer stop()
+	ln, err := net.Listen("tcp", cfg.Listen)
+	if err != nil {
+		return fail(stderr, err)
+	}
+	log := slog.New(slog.NewJSONHandler(stderr, nil))
+	log.Info("starting", "theme", cfg.Theme, "languages", cfg.Languages,
+		"listen", ln.Addr().String(), "version", version)
+	if ready != nil {
+		ready(ln.Addr())
+	}
 
 	errc := make(chan error, 1)
-	go func() { errc <- srv.ListenAndServe() }()
-	log.Info("starting", "theme", cfg.Theme, "languages", cfg.Languages,
-		"listen", cfg.Listen, "version", version)
-
+	go func() { errc <- srv.Serve(ln) }()
 	select {
 	case err := <-errc:
 		return fail(stderr, err)
@@ -131,7 +140,12 @@ func healthcheck(getenv func(string) (string, bool), stderr io.Writer) int {
 	if err != nil {
 		return fail(stderr, err)
 	}
-	resp, err := (&http.Client{Timeout: 2 * time.Second}).Get(u)
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+		// A redirect is not healthy: judge the first response only.
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	resp, err := client.Get(u)
 	if err != nil {
 		return fail(stderr, err)
 	}
@@ -184,9 +198,6 @@ func maintenanceCmd(args []string, getenv func(string) (string, bool), stdout, s
 
 // fail prints err on one line to stderr and returns exit code 1.
 func fail(stderr io.Writer, err error) int {
-	if errors.Is(err, http.ErrServerClosed) {
-		return 0
-	}
 	msg := strings.Join(strings.Fields(err.Error()), " ")
 	_, _ = fmt.Fprintln(stderr, msg)
 	return 1

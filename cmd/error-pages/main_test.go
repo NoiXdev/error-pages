@@ -2,12 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func env(m map[string]string) func(string) (string, bool) {
@@ -115,5 +118,73 @@ func TestHealthURL(t *testing.T) {
 	}
 	if _, err := healthURL("nonsense"); err == nil {
 		t.Error("want error for missing port")
+	}
+}
+
+func TestServeCtxStartsAndShutsDown(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	addr := make(chan net.Addr, 1)
+	var errb bytes.Buffer
+	done := make(chan int, 1)
+	e := env(map[string]string{"LISTEN": "127.0.0.1:0", "MAINTENANCE_FILE": filepath.Join(t.TempDir(), "m")})
+	go func() { done <- serveCtx(ctx, e, &errb, func(a net.Addr) { addr <- a }) }()
+
+	var a net.Addr
+	select {
+	case a = <-addr:
+	case code := <-done:
+		t.Fatalf("serveCtx returned %d before listening: %s", code, errb.String())
+	case <-time.After(5 * time.Second):
+		t.Fatal("server did not start")
+	}
+	resp, err := http.Get("http://" + a.String() + "/healthz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("healthz: %d", resp.StatusCode)
+	}
+	cancel()
+	select {
+	case code := <-done:
+		if code != 0 {
+			t.Fatalf("exit code %d: %s", code, errb.String())
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("server did not shut down")
+	}
+	if !strings.Contains(errb.String(), `"msg":"starting"`) || !strings.Contains(errb.String(), a.String()) {
+		t.Errorf("no starting log with the bound address: %s", errb.String())
+	}
+}
+
+func TestServeCtxListenFails(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ln.Close() }()
+	var errb bytes.Buffer
+	e := env(map[string]string{"LISTEN": ln.Addr().String(), "MAINTENANCE_FILE": filepath.Join(t.TempDir(), "m")})
+	if code := serveCtx(context.Background(), e, &errb, nil); code != 1 {
+		t.Fatalf("code %d, want 1", code)
+	}
+	if strings.Contains(errb.String(), "starting") {
+		t.Errorf("logged starting although listen failed: %s", errb.String())
+	}
+}
+
+func TestHealthcheckDoesNotFollowRedirects(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/healthz" {
+			http.Redirect(w, r, "/ok", http.StatusFound)
+		}
+	}))
+	defer srv.Close()
+	u, _ := url.Parse(srv.URL)
+	if code, _, _ := runCmd(t, map[string]string{"LISTEN": u.Host}, "healthcheck"); code != 1 {
+		t.Fatalf("redirect: code %d, want 1", code)
 	}
 }
