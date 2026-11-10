@@ -98,7 +98,7 @@ README.
 ## Release flow
 
 `.github/workflows/release.yaml` is dispatched manually from `main` (`bump`,
-`prerelease_id` default `rc`, `dry_run`). It gates on `ci.yaml`, then calls the shared
+`prerelease_id` choice `rc`/`beta`/`alpha`/`final`, default `rc`, `dry_run`). It gates on `ci.yaml`, then calls the shared
 `create_docker_changelog_version_release.yaml`, which rewrites `version.json`, builds
 and pushes `linux/amd64,linux/arm64`, tags and releases. The first release is
 `bump=major` with `prerelease_id=rc`, giving `1.0.0-rc.1`. Needs

@@ -66,13 +66,15 @@ release and generates the changelog from Conventional Commits.
 Inputs:
 
 - `bump`: `patch`, `minor` or `major`.
-- `prerelease_id`: defaults to `rc`; leave it empty to promote a candidate to a final
-  version.
+- `prerelease_id`: `rc` (default), `beta`, `alpha`, or `final` to promote a candidate
+  to its final version. It is a choice because a dispatch replaces an empty value with
+  the default.
 - `dry_run`: run every gate and build, push nothing.
 
 The **first release** is dispatched with `bump=major` and `prerelease_id=rc`, which
 yields `1.0.0-rc.1` (tag `v1.0.0-rc.1`). Dispatching again with `rc` gives
-`1.0.0-rc.2`; an empty `prerelease_id` promotes the candidate to `1.0.0`.
+`1.0.0-rc.2`; `prerelease_id=final` promotes the candidate to `1.0.0` and moves the
+`latest`, `1.0` and `1` image tags.
 
 The repository needs these settings:
 

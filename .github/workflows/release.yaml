@@ -1,8 +1,10 @@
 name: Release
-run-name: Release ${{ inputs.bump }}${{ inputs.prerelease_id != '' && format('-{0}', inputs.prerelease_id) || '' }}${{ inputs.dry_run && ' (dry run)' || '' }}
+run-name: Release ${{ inputs.bump }}${{ inputs.prerelease_id != 'final' && format('-{0}', inputs.prerelease_id) || ' (final)' }}${{ inputs.dry_run && ' (dry run)' || '' }}
 
 # Dispatched by hand. The first release is bump=major with prerelease_id=rc,
-# which yields 1.0.0-rc.1 (tag v1.0.0-rc.1). The gates run on the ref being
+# which yields 1.0.0-rc.1 (tag v1.0.0-rc.1); prerelease_id=final promotes a
+# candidate to its final version. A choice, not free text: workflow_dispatch
+# replaces an empty string with the default, so "empty means final" can't work. The gates run on the ref being
 # released, and the branch guard refuses a dispatch from anywhere but main.
 on:
   workflow_dispatch:
@@ -16,8 +18,13 @@ on:
           - minor
           - major
       prerelease_id:
-        description: "Prerelease identifier; empty promotes to a final version"
-        type: string
+        description: "Prerelease identifier; final promotes to a final version"
+        type: choice
+        options:
+          - rc
+          - beta
+          - alpha
+          - final
         default: "rc"
       dry_run:
         description: "Run every gate and build, push nothing"
@@ -39,7 +46,7 @@ jobs:
     uses: NoiXdev/github-workflows/.github/workflows/create_docker_changelog_version_release.yaml@main
     with:
       bump: ${{ inputs.bump }}
-      prerelease_id: ${{ inputs.prerelease_id }}
+      prerelease_id: ${{ inputs.prerelease_id != 'final' && inputs.prerelease_id || '' }}
       dry_run: ${{ inputs.dry_run }}
       platforms: linux/amd64,linux/arm64
       version_file: version.json
