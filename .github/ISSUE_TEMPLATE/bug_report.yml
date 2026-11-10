@@ -1,0 +1,84 @@
+name: Bug Report
+description: Something is not working as expected
+labels: [bug]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in as much detail as possible.
+
+        **Before you paste anything:** redact hostnames, addresses and credentials from
+        your configuration before it goes into a public issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown in the page footer, or printed by `error-pages version`.
+      placeholder: e.g. 1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: theme
+    attributes:
+      label: Theme
+      description: The value of `THEME` (glass, terminal, classic, status or clean).
+    validations:
+      required: true
+
+  - type: input
+    id: page
+    attributes:
+      label: Page or error code
+      description: Which page is affected, for example 502 or maintenance.
+    validations:
+      required: true
+
+  - type: input
+    id: language
+    attributes:
+      label: Language
+      description: The language shown (de, en, pl or fr) and how it was selected.
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      description: Browser and version, or the client you used (for example curl).
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: Your environment variables or config file, with secrets and hostnames redacted.
+      render: text
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Screenshots, response headers or anything else that helps.
