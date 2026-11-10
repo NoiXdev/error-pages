@@ -36,7 +36,11 @@ body.ep-theme-clean {
 }
 .n-bottom a { color: var(--c-muted); text-decoration: none; }
 .n-bottom a:hover, .n-bottom .ep-langs a.on { color: var(--c-fg); }
-.n-bottom .ep-langs { gap: 10px; }
+/* Languages and menu links are separated by " · ", as in the mockup. */
+.n-bottom .ep-langs, .n-bottom .ep-menu { gap: 4px; }
+.n-bottom .ep-langs a + a::before, .n-bottom .ep-menu a + a::before {
+  content: "·"; margin-right: 4px; color: var(--c-muted); pointer-events: none;
+}
 
 /* The divider shows at full size, the page without fade. */
 @media (prefers-reduced-motion: reduce) {

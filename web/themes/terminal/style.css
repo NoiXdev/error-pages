@@ -6,6 +6,7 @@ body.ep-theme-terminal {
   color: rgba(128, 255, 128, .82);
   font-family: "Inconsolata", ui-monospace, Menlo, monospace;
   font-size: 1.45rem;
+  line-height: 1.2;
   text-shadow: 0 0 1ex rgba(51, 255, 51, 1), 0 0 2px rgba(255, 255, 255, .8);
 }
 
@@ -73,5 +74,7 @@ body.ep-theme-terminal {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .t-noise, .t-overlay::before, .t-cursor { animation: none; }
+  .t-noise, .t-cursor { animation: none; }
+  /* A frozen beam would sit as a stray line at the bottom; drop it. */
+  .t-overlay::before { animation: none; display: none; }
 }

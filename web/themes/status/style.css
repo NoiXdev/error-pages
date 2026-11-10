@@ -77,6 +77,8 @@ body.ep-theme-status {
   font-size: 12.5px; color: var(--s-muted);
 }
 .s-foot .ep-menu { justify-content: flex-start; gap: 6px 14px; }
+/* The footer stays on the right, also when there is no menu. */
+.s-foot .ep-footer { margin-left: auto; }
 .s-foot a { color: #666; text-decoration: none; }
 .s-foot a:hover { color: var(--s-fg); }
 
@@ -91,7 +93,7 @@ body.ep-theme-status {
 }
 
 /* Narrow phones: smaller icons and badges so three nodes still fit. */
-@media (max-width: 380px) {
+@media (max-width: 340px) {
   .s-chain { gap: 6px; }
   .s-ico { width: 52px; height: 52px; }
   .s-ico svg { width: 26px; height: 26px; }
