@@ -1,11 +1,14 @@
 package server
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -40,13 +43,13 @@ func newHandler(t *testing.T, e env, flag *string) http.Handler {
 	if err != nil {
 		t.Fatalf("texts.Load: %v", err)
 	}
-	r, err := render.New(cfg, cat, web.FS, "1.2.3")
+	now := func() time.Time { return clock }
+	r, err := render.New(cfg, cat, web.FS, "1.2.3", now)
 	if err != nil {
 		t.Fatalf("render.New: %v", err)
 	}
-	now := func() time.Time { return clock }
 	m := maintenance.New(cfg.Maintenance, cfg.MaintenanceUntil, cfg.MaintenanceFile, now)
-	return New(cfg, r, m, web.FS, "1.2.3", now)
+	return New(cfg, r, m, now)
 }
 
 func merge(a, b env) env {
@@ -107,14 +110,21 @@ func TestOddPaths(t *testing.T) {
 	if rec := do(h, "GET", "/503.html?x=1", nil); rec.Code != 503 {
 		t.Errorf("query: status %d, want 503", rec.Code)
 	}
-	for _, p := range []string{"/static/../go.mod", "/static/x/../../go.mod", "/static/x/%2e%2e/%2e%2e/go.mod", "/static/x/themes/glass/page.html.tmpl", "/static/x/themes/terminal/style.css", "/static/x/themes/glass/../../../../go.mod"} {
+}
+
+// TestNoStaticAssets: the service serves no files. Former asset paths get
+// the normal 404 page with the page headers.
+func TestNoStaticAssets(t *testing.T) {
+	h := newHandler(t, nil, nil)
+	for _, p := range []string{"/static/1.2.3/css/base.css", "/static/x/js/i18n.js",
+		"/static/1.2.3/fonts/inter-latin-wght-normal.woff2", "/static/../go.mod"} {
 		rec := do(h, "GET", p, nil)
-		if rec.Code == 200 || strings.Contains(rec.Body.String(), "module ") {
-			t.Errorf("%s: status %d, leaked", p, rec.Code)
+		if rec.Code != 404 || !strings.Contains(rec.Body.String(), "Page not found") {
+			t.Errorf("%s: status %d, want the 404 page", p, rec.Code)
 		}
-	}
-	if rec := do(h, "GET", "/static/x/js/nope.js", nil); rec.Code != 404 || strings.Contains(rec.Body.String(), "<html") {
-		t.Errorf("unknown static: %d / page body", rec.Code)
+		if rec.Header().Get("Cache-Control") != "no-store" || rec.Header().Get("Content-Security-Policy") == "" {
+			t.Errorf("%s: page headers missing", p)
+		}
 	}
 }
 
@@ -199,13 +209,12 @@ func TestHeaders(t *testing.T) {
 	h := newHandler(t, nil, nil)
 	rec := do(h, "GET", "/503", map[string]string{"Accept-Language": "pl"})
 	want := map[string]string{
-		"Content-Security-Policy": "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
-		"Cache-Control":           "no-store",
-		"X-Content-Type-Options":  "nosniff",
-		"Referrer-Policy":         "no-referrer",
-		"X-Frame-Options":         "DENY",
-		"Content-Language":        "pl",
-		"Vary":                    "Accept, Accept-Language",
+		"Cache-Control":          "no-store",
+		"X-Content-Type-Options": "nosniff",
+		"Referrer-Policy":        "no-referrer",
+		"X-Frame-Options":        "DENY",
+		"Content-Language":       "pl",
+		"Vary":                   "Accept, Accept-Language",
 	}
 	for k, v := range want {
 		if got := rec.Header().Get(k); got != v {
@@ -214,6 +223,47 @@ func TestHeaders(t *testing.T) {
 	}
 	if _, ok := rec.Header()["Server"]; ok {
 		t.Error("Server header set")
+	}
+}
+
+var (
+	styleBlock  = regexp.MustCompile(`(?s)<style>(.*?)</style>`)
+	scriptBlock = regexp.MustCompile(`(?s)<script>(.*?)</script>`)
+)
+
+// markup strips the inline CSS and JS from a page.
+func markup(body string) string {
+	return scriptBlock.ReplaceAllString(styleBlock.ReplaceAllString(body, ""), "")
+}
+
+func sha(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return base64.StdEncoding.EncodeToString(sum[:])
+}
+
+// TestCSP checks for every theme that the header allows exactly the page's
+// inline style and script, and that JSON and plain text get the same policy.
+func TestCSP(t *testing.T) {
+	for _, theme := range config.Themes {
+		t.Run(theme, func(t *testing.T) {
+			h := newHandler(t, env{"THEME": theme}, nil)
+			rec := do(h, "GET", "/maintenance", map[string]string{"Accept-Language": "de"})
+			body := rec.Body.String()
+			css, js := styleBlock.FindAllStringSubmatch(body, -1), scriptBlock.FindAllStringSubmatch(body, -1)
+			if len(css) != 1 || len(js) != 1 {
+				t.Fatalf("%d style and %d script blocks", len(css), len(js))
+			}
+			want := "default-src 'none'; img-src data:; font-src data:; style-src 'sha256-" + sha(css[0][1]) +
+				"'; script-src 'sha256-" + sha(js[0][1]) + "'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+			if got := rec.Header().Get("Content-Security-Policy"); got != want {
+				t.Errorf("CSP = %q\nwant  %q", got, want)
+			}
+			for _, accept := range []string{"application/json", "text/plain"} {
+				if got := do(h, "GET", "/404", map[string]string{"Accept": accept}).Header().Get("Content-Security-Policy"); got != want {
+					t.Errorf("%s: CSP %q", accept, got)
+				}
+			}
+		})
 	}
 }
 
@@ -237,31 +287,6 @@ func TestHealthz(t *testing.T) {
 	rec := do(h, "GET", "/healthz", nil)
 	if rec.Code != 200 || rec.Body.String() != "ok\n" || !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/plain") {
 		t.Errorf("healthz: %d %q %q", rec.Code, rec.Body.String(), rec.Header().Get("Content-Type"))
-	}
-}
-
-func TestStaticCache(t *testing.T) {
-	h := newHandler(t, nil, nil)
-	for path, ct := range map[string]string{
-		"/static/x/js/i18n.js":                              "javascript",
-		"/static/1.2.3/css/base.css":                        "text/css",
-		"/static/1.2.3/themes/glass/style.css":              "text/css",
-		"/static/1.2.3/fonts/inter-latin-wght-normal.woff2": "font/woff2",
-	} {
-		rec := do(h, "GET", path, nil)
-		if rec.Code != 200 {
-			t.Errorf("%s: %d", path, rec.Code)
-			continue
-		}
-		if got := rec.Header().Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
-			t.Errorf("%s: Cache-Control %q", path, got)
-		}
-		if !strings.Contains(rec.Header().Get("Content-Type"), ct) {
-			t.Errorf("%s: Content-Type %q", path, rec.Header().Get("Content-Type"))
-		}
-		if rec.Header().Get("X-Content-Type-Options") != "nosniff" {
-			t.Errorf("%s: no nosniff", path)
-		}
 	}
 }
 
@@ -296,7 +321,7 @@ func TestDetails(t *testing.T) {
 func TestDetailsHidden(t *testing.T) {
 	h := newHandler(t, env{"THEME": "status", "SHOW_DETAILS": "false"}, nil)
 	body := do(h, "GET", "/502", map[string]string{"X-Forwarded-Host": "example.org", "X-Request-Id": "abc"}).Body.String()
-	if strings.Contains(body, "s-meta") || strings.Contains(body, "example.org") {
+	if m := markup(body); strings.Contains(m, "s-meta") || strings.Contains(m, "example.org") {
 		t.Error("details shown with SHOW_DETAILS=false")
 	}
 }
@@ -342,7 +367,7 @@ func TestRetryAfterPastUntil(t *testing.T) {
 	if rec.Code != 503 || !strings.Contains(rec.Body.String(), `data-page="maintenance"`) {
 		t.Fatalf("maintenance not active: %d", rec.Code)
 	}
-	if strings.Contains(rec.Body.String(), "data-until") {
+	if strings.Contains(markup(rec.Body.String()), "data-until") {
 		t.Error("end time shown although it is in the past")
 	}
 	if got := rec.Header().Get("Retry-After"); got != "" {
@@ -356,5 +381,15 @@ func TestSanitize(t *testing.T) {
 	}
 	if got := sanitize(strings.Repeat("é", 300), 253); len([]rune(got)) != 253 {
 		t.Errorf("truncate = %d runes", len([]rune(got)))
+	}
+}
+
+func TestErrorAndHealthzHeaders(t *testing.T) {
+	h := newHandler(t, nil, nil)
+	rec := do(h, "GET", "/healthz", nil)
+	for k, v := range map[string]string{"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY"} {
+		if got := rec.Header().Get(k); got != v {
+			t.Errorf("healthz %s = %q, want %q", k, got, v)
+		}
 	}
 }

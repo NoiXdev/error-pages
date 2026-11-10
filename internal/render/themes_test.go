@@ -21,8 +21,8 @@ func TestTerminalRenders(t *testing.T) {
 	for _, want := range []string{
 		`<html lang="fr"`,
 		"Page introuvable",
-		`/static/1.2.3/themes/terminal/style.css`,
-		`/static/1.2.3/themes/terminal/theme.js`,
+		".t-overlay",    // terminal style.css, inlined
+		"SHUFFLE_STEPS", // terminal theme.js, inlined
 		`data-action="back"`,
 		`data-action="reload"`,
 		`data-t="pages.404.title"`,
@@ -56,7 +56,7 @@ func TestClassicDigits(t *testing.T) {
 
 	for _, want := range []string{
 		`<span>5</span><span>0</span><span>3</span>`,
-		`/static/1.2.3/themes/classic/style.css`,
+		"body.ep-theme-classic", // classic style.css, inlined
 		`data-action="back"`,
 		`data-action="reload"`,
 	} {
@@ -64,9 +64,7 @@ func TestClassicDigits(t *testing.T) {
 			t.Errorf("output lacks %q", want)
 		}
 	}
-	if strings.Contains(out, "theme.js") {
-		t.Error("classic loads a theme script")
-	}
+	sharedJSOnly(t, out)
 	if strings.Contains(out, "style=") {
 		t.Error("output contains an inline style attribute")
 	}
@@ -81,7 +79,7 @@ func TestCleanRenders(t *testing.T) {
 	for _, want := range []string{
 		`<html lang="pl"`,
 		"Jestem czajniczkiem",
-		`/static/1.2.3/themes/clean/style.css`,
+		".n-wrap", // clean style.css, inlined
 		`data-t="pages.418.title"`,
 		`data-action="reload"`,
 	} {
@@ -89,9 +87,7 @@ func TestCleanRenders(t *testing.T) {
 			t.Errorf("output lacks %q", want)
 		}
 	}
-	if strings.Contains(out, "theme.js") {
-		t.Error("clean loads a theme script")
-	}
+	sharedJSOnly(t, out)
 	if strings.Contains(out, "style=") {
 		t.Error("output contains an inline style attribute")
 	}
@@ -135,7 +131,7 @@ func TestStatusFailingLink(t *testing.T) {
 	out := renderHTML(t, r, Request{Page: page(t, "502"), Lang: "en"})
 	for _, want := range []string{
 		`<span data-t="ui.error">Error</span> 502</b> · <span data-t="pages.502.title">Bad gateway</span>`,
-		`/static/1.2.3/themes/status/style.css`,
+		".s-wrap", // status style.css, inlined
 		`data-action="back"`,
 		`data-action="reload"`,
 		`<svg`,
@@ -164,7 +160,7 @@ func TestStatusDetails(t *testing.T) {
 	}
 
 	out = renderHTML(t, r, Request{Page: page(t, "502"), Lang: "en"})
-	if strings.Contains(out, "s-meta") {
+	if strings.Contains(markup(out), "s-meta") {
 		t.Error("meta line without details")
 	}
 }

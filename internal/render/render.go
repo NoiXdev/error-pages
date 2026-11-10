@@ -49,13 +49,13 @@ type Request struct {
 // Renderer renders pages with the configured theme. It is safe for
 // concurrent use.
 type Renderer struct {
-	cfg        config.Config
-	cat        texts.Catalog
-	tmpl       *template.Template
-	version    string
-	static     string
-	hasThemeJS bool
-	textsJSON  map[string]template.JS // by page key
+	cfg       config.Config
+	cat       texts.Catalog
+	tmpl      *template.Template
+	version   string
+	inline    inline
+	now       func() time.Time
+	textsJSON map[string]template.JS // by page key
 }
 
 // Lang is one entry of the language switch.
@@ -97,21 +97,17 @@ type View struct {
 	DetailsAt string // Details.Time in UTC, or empty without details
 	Failing   string // failing chain link: "browser", "network" or "host"
 
-	Static     string
-	Theme      string
-	HasThemeJS bool
-	TextsJSON  template.JS
+	Theme     string
+	TextsJSON template.JS
+	Style     template.HTML // the inline <style> element
+	Script    template.HTML // the inline <script> element
 }
 
-// StaticPrefix is the URL prefix of the versioned static assets.
-func StaticPrefix(version string) string {
-	return "/static/" + version + "/"
-}
-
-// New parses the shared layout and every theme template found in assets.
-// A broken template in any theme, or a missing template for cfg.Theme, is
-// an error.
-func New(cfg config.Config, cat texts.Catalog, assets fs.FS, version string) (*Renderer, error) {
+// New parses the shared layout and every theme template found in assets
+// and builds the configured theme's inline CSS and JS. A broken template in
+// any theme, or a missing template or asset for cfg.Theme, is an error.
+// now is the clock for the footer year; nil means time.Now.
+func New(cfg config.Config, cat texts.Catalog, assets fs.FS, version string, now func() time.Time) (*Renderer, error) {
 	layout, err := fs.ReadFile(assets, layoutFile)
 	if err != nil {
 		return nil, fmt.Errorf("render: %w", err)
@@ -156,15 +152,21 @@ func New(cfg config.Config, cat texts.Catalog, assets fs.FS, version string) (*R
 		return nil, fmt.Errorf("render: no template for theme %q", cfg.Theme)
 	}
 
-	_, err = fs.Stat(assets, path.Join(themesDir, cfg.Theme, themeJS))
+	in, err := buildInline(assets, cfg.Theme)
+	if err != nil {
+		return nil, fmt.Errorf("render: %w", err)
+	}
+	if now == nil {
+		now = time.Now
+	}
 	r := &Renderer{
-		cfg:        cfg,
-		cat:        fill(cat, cfg.Languages, cfg.DefaultLanguage),
-		tmpl:       selected,
-		version:    version,
-		static:     StaticPrefix(version),
-		hasThemeJS: err == nil,
-		textsJSON:  map[string]template.JS{},
+		cfg:       cfg,
+		cat:       fill(cat, cfg.Languages, cfg.DefaultLanguage),
+		tmpl:      selected,
+		version:   version,
+		inline:    in,
+		now:       now,
+		textsJSON: map[string]template.JS{},
 	}
 
 	keys := append(pages.Known(), "4xx", "5xx")
@@ -263,10 +265,10 @@ func (r *Renderer) view(req Request) View {
 		Closing:     closing,
 		Details:     req.Details,
 		Failing:     string(req.Page.Failing()),
-		Static:      r.static,
 		Theme:       r.cfg.Theme,
-		HasThemeJS:  r.hasThemeJS,
 		TextsJSON:   r.textsJSON[req.Page.Key],
+		Style:       r.inline.style,
+		Script:      r.inline.script,
 	}
 	if len(r.cfg.Languages) > 1 {
 		for _, l := range r.cfg.Languages {
@@ -282,7 +284,7 @@ func (r *Renderer) view(req Request) View {
 		v.Links = append(v.Links, Link{ID: l.ID, Label: l.Label(lang, r.cfg.DefaultLanguage), Href: l.Href(lang)})
 	}
 
-	f := Footer{Year: time.Now().Year(), Name: r.cfg.CopyrightName, URL: r.cfg.CopyrightURL}
+	f := Footer{Year: r.now().Year(), Name: r.cfg.CopyrightName, URL: r.cfg.CopyrightURL}
 	if r.cfg.ShowVersion {
 		f.Version = r.version
 	}

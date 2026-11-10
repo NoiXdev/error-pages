@@ -31,7 +31,7 @@ func newRenderer(t *testing.T, cfg config.Config, version string) *Renderer {
 	if err != nil {
 		t.Fatalf("texts.Load: %v", err)
 	}
-	r, err := New(cfg, cat, web.FS, version)
+	r, err := New(cfg, cat, web.FS, version, nil)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -45,6 +45,43 @@ func page(t *testing.T, key string) pages.Page {
 		t.Fatalf("unknown page %q", key)
 	}
 	return p
+}
+
+// testAssets returns the bundled layout and shared assets plus files, for
+// renderers built from a synthetic theme directory.
+func testAssets(t *testing.T, files fstest.MapFS) fstest.MapFS {
+	t.Helper()
+	out := fstest.MapFS{}
+	for _, name := range []string{layoutFile, baseCSS, i18nJS, "static/fonts/inter.css",
+		"static/fonts/inter-latin-wght-normal.woff2", "static/fonts/inter-latin-ext-wght-normal.woff2"} {
+		b, err := web.FS.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out[name] = &fstest.MapFile{Data: b}
+	}
+	for name, f := range files {
+		out[name] = f
+	}
+	return out
+}
+
+// markup returns out without its inline <style> and <script> blocks, so
+// assertions about the page's elements do not match CSS or JS source.
+func markup(out string) string {
+	return scriptBlock.ReplaceAllString(styleBlock.ReplaceAllString(out, ""), "")
+}
+
+// sharedJSOnly fails unless the page's script is exactly i18n.js.
+func sharedJSOnly(t *testing.T, out string) {
+	t.Helper()
+	want, err := web.FS.ReadFile(i18nJS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, js := inlineBlocks(t, out); js != string(want) {
+		t.Error("page script is not just i18n.js")
+	}
 }
 
 func renderHTML(t *testing.T, r *Renderer, req Request) string {
@@ -70,9 +107,9 @@ func TestHTMLGlassMaintenanceDE(t *testing.T) {
 		"503",
 		`data-t="pages.maintenance.title"`,
 		`id="ep-texts"`,
-		`/static/1.2.3/themes/glass/style.css`,
-		`/static/1.2.3/css/base.css`,
-		`/static/1.2.3/js/i18n.js`,
+		".g-page", // glass style.css, inlined
+		"ep:lang", // i18n.js, inlined
+		`url(data:font/woff2;base64,`,
 		`data-action="back"`,
 		`data-action="reload"`,
 		`href="?lang=en"`,
@@ -82,14 +119,11 @@ func TestHTMLGlassMaintenanceDE(t *testing.T) {
 		}
 	}
 	for _, tag := range scriptTag.FindAllString(out, -1) {
-		if strings.Contains(tag, "src=") {
-			continue
-		}
-		if tag != `<script type="application/json" id="ep-texts">` {
-			t.Errorf("inline script tag %q", tag)
+		if tag != `<script>` && tag != `<script type="application/json" id="ep-texts">` {
+			t.Errorf("unexpected script tag %q", tag)
 		}
 	}
-	for _, bad := range []string{`style="`, "javascript:", "<style", "{{", "<no value>"} {
+	for _, bad := range []string{`style="`, "javascript:", "<link", "{{", "<no value>"} {
 		if strings.Contains(out, bad) {
 			t.Errorf("output contains %q", bad)
 		}
@@ -175,7 +209,7 @@ func TestMissingTextsFallBackToDefaultLanguage(t *testing.T) {
 	t.Run("default lacks it too", func(t *testing.T) {
 		cfg := defaultConfig(t)
 		cfg.DefaultLanguage = "de"
-		r, err := New(cfg, load(t, cfg), web.FS, "1")
+		r, err := New(cfg, load(t, cfg), web.FS, "1", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -195,7 +229,7 @@ func TestMissingTextsFallBackToDefaultLanguage(t *testing.T) {
 
 	t.Run("default has it", func(t *testing.T) {
 		cfg := defaultConfig(t) // default language en
-		r, err := New(cfg, load(t, cfg), web.FS, "1")
+		r, err := New(cfg, load(t, cfg), web.FS, "1", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -211,7 +245,7 @@ func TestMissingTextsFallBackToDefaultLanguage(t *testing.T) {
 
 	t.Run("same key set in every language", func(t *testing.T) {
 		cfg := defaultConfig(t)
-		r, err := New(cfg, load(t, cfg), web.FS, "1")
+		r, err := New(cfg, load(t, cfg), web.FS, "1", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -238,15 +272,11 @@ func TestFooterSeparatorOverride(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	layout, err := web.FS.ReadFile("templates/layout.html.tmpl")
-	if err != nil {
-		t.Fatal(err)
-	}
-	assets := fstest.MapFS{
-		"templates/layout.html.tmpl":  {Data: layout},
+	assets := testAssets(t, fstest.MapFS{
+		"themes/glass/style.css":      {},
 		"themes/glass/page.html.tmpl": {Data: []byte(`{{define "ep-sep"}} — {{end}}{{define "page"}}{{template "ep-footer" .}}{{end}}`)},
-	}
-	r, err := New(cfg, cat, assets, "1.2.3")
+	})
+	r, err := New(cfg, cat, assets, "1.2.3", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -315,7 +345,7 @@ func TestSingleLanguageHidesSwitch(t *testing.T) {
 	cfg.Languages = []string{"de"}
 	cfg.DefaultLanguage = "de"
 	out := renderHTML(t, newRenderer(t, cfg, "1.2.3"), Request{Page: page(t, "404"), Lang: "de"})
-	if strings.Contains(out, "ep-langs") {
+	if strings.Contains(markup(out), "ep-langs") {
 		t.Error("language switch rendered with one language")
 	}
 }
@@ -341,7 +371,7 @@ func TestUntil(t *testing.T) {
 	}
 
 	out = renderHTML(t, r, Request{Page: page(t, "maintenance"), Lang: "en"})
-	if strings.Contains(out, "data-until") {
+	if strings.Contains(markup(out), "data-until") {
 		t.Error("data-until rendered without Until")
 	}
 }
@@ -394,19 +424,9 @@ func TestJSONAndPlain(t *testing.T) {
 	}
 }
 
-func TestStaticPrefix(t *testing.T) {
-	if got := StaticPrefix("1.0.0-rc.1"); got != "/static/1.0.0-rc.1/" {
-		t.Errorf("StaticPrefix = %q", got)
-	}
-}
-
 func TestNewFailsOnBrokenTemplate(t *testing.T) {
 	cfg := defaultConfig(t)
 	cat, err := texts.Load(web.FS, cfg.Theme, "", cfg.Languages)
-	if err != nil {
-		t.Fatal(err)
-	}
-	layout, err := web.FS.ReadFile("templates/layout.html.tmpl")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -414,18 +434,18 @@ func TestNewFailsOnBrokenTemplate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := fstest.MapFS{
-		"templates/layout.html.tmpl":   {Data: layout},
+	base := testAssets(t, fstest.MapFS{
+		"themes/glass/style.css":       {},
 		"themes/glass/page.html.tmpl":  {Data: glass},
 		"themes/broken/page.html.tmpl": {Data: []byte(`{{define "page"}}{{if}}{{end}}`)},
-	}
-	if _, err := New(cfg, cat, base, "1"); err == nil {
+	})
+	if _, err := New(cfg, cat, base, "1", nil); err == nil {
 		t.Error("New accepted a broken theme template")
 	}
 
 	delete(base, "themes/broken/page.html.tmpl")
 	cfg.Theme = "terminal"
-	if _, err := New(cfg, cat, base, "1"); err == nil {
+	if _, err := New(cfg, cat, base, "1", nil); err == nil {
 		t.Error("New accepted a missing theme")
 	}
 }
@@ -436,15 +456,11 @@ func TestHTMLWritesNothingOnError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	layout, err := web.FS.ReadFile("templates/layout.html.tmpl")
-	if err != nil {
-		t.Fatal(err)
-	}
-	assets := fstest.MapFS{
-		"templates/layout.html.tmpl":  {Data: layout},
+	assets := testAssets(t, fstest.MapFS{
+		"themes/glass/style.css":      {},
 		"themes/glass/page.html.tmpl": {Data: []byte(`{{define "page"}}<h1>{{.Title}}</h1>{{template "missing" .}}{{end}}`)},
-	}
-	r, err := New(cfg, cat, assets, "1")
+	})
+	r, err := New(cfg, cat, assets, "1", nil)
 	if err != nil {
 		t.Skipf("template rejected at parse time: %v", err)
 	}
@@ -454,5 +470,22 @@ func TestHTMLWritesNothingOnError(t *testing.T) {
 	}
 	if buf.Len() != 0 {
 		t.Errorf("partial output written: %q", buf.String())
+	}
+}
+
+func TestFooterYearFromClock(t *testing.T) {
+	cfg := defaultConfig(t)
+	cfg.CopyrightName = "noidee"
+	cat, err := texts.Load(web.FS, cfg.Theme, "", cfg.Languages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock := func() time.Time { return time.Date(2031, 1, 1, 0, 0, 0, 0, time.UTC) }
+	r, err := New(cfg, cat, web.FS, "1.2.3", clock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := renderHTML(t, r, Request{Page: page(t, "404"), Lang: "en"}); !strings.Contains(out, "© 2031 noidee") {
+		t.Error("footer year does not come from the injected clock")
 	}
 }

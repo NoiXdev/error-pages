@@ -70,7 +70,7 @@ func serve(getenv func(string) (string, bool), stderr io.Writer) int {
 	if err != nil {
 		return fail(stderr, err)
 	}
-	r, err := render.New(cfg, cat, web.FS, version)
+	r, err := render.New(cfg, cat, web.FS, version, time.Now)
 	if err != nil {
 		return fail(stderr, err)
 	}
@@ -79,7 +79,7 @@ func serve(getenv func(string) (string, bool), stderr io.Writer) int {
 	log := slog.New(slog.NewJSONHandler(stderr, nil))
 	srv := &http.Server{
 		Addr:              cfg.Listen,
-		Handler:           server.New(cfg, r, m, web.FS, version, time.Now),
+		Handler:           server.New(cfg, r, m, time.Now),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

@@ -2,9 +2,12 @@
 // local rendering of the maintenance end time. The page is complete without
 // it; this only enhances.
 //
+// The page inlines this file, followed by the theme's theme.js, in one
+// script at the end of body, so the DOM is complete when it runs.
+//
 // Theme scripts: listen for the `ep:lang` event on document (detail.lang).
-// It fires once on DOMContentLoaded, after every deferred script has run,
-// and again on each switch. At startup a theme script may also read
+// It fires once on DOMContentLoaded, after the theme script has run, and
+// again on each switch. At startup a theme script may also read
 // document.documentElement.lang, which already holds the applied language.
 (function () {
   'use strict';

@@ -5,6 +5,10 @@
   i18n.js can swap their text in place. Optional texts are always rendered
   and carry `hidden` while empty; i18n.js toggles it on a language switch.
   A theme may redefine "ep-sep" (the footer separator, " · " by default).
+  Pages are self-contained: .Style and .Script are the theme's CSS (with
+  its fonts as data: URIs) and JS, built once at startup and allowed by
+  their CSP hashes. The script sits at the end of body, so the DOM it
+  enhances is complete when it runs.
 */ -}}
 {{define "layout" -}}
 <!DOCTYPE html>
@@ -14,16 +18,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>{{.Code}} · {{.Title}}</title>
-<link rel="stylesheet" href="{{.Static}}css/base.css">
-<link rel="stylesheet" href="{{.Static}}themes/{{.Theme}}/style.css">
+{{.Style}}
 <script type="application/json" id="ep-texts">{{.TextsJSON}}</script>
-<script defer src="{{.Static}}js/i18n.js"></script>
-{{- if .HasThemeJS}}
-<script defer src="{{.Static}}themes/{{.Theme}}/theme.js"></script>
-{{- end}}
 </head>
 <body class="ep ep-theme-{{.Theme}}">
 {{template "page" .}}
+{{.Script}}
 </body>
 </html>
 {{end}}

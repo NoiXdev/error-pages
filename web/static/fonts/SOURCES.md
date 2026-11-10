@@ -16,5 +16,5 @@ Both fonts are licensed under the SIL Open Font License 1.1 (see `OFL.txt`).
 | `inconsolata-latin-wght-normal.woff2` | `@fontsource-variable/inconsolata@5.3.0/files/inconsolata-latin-wght-normal.woff2` | `4914e68b98699a8f3d5d552fe60fd7a1c2cb631a0f66f0a148392f161d3155ab` |
 | `inconsolata-latin-ext-wght-normal.woff2` | `@fontsource-variable/inconsolata@5.3.0/files/inconsolata-latin-ext-wght-normal.woff2` | `8ca8881c29e485da4cfd38974399d070fe8fe934d626f774a32a59898117a676` |
 
-The `unicode-range` values in `web/static/css/base.css` are copied from the
+The `unicode-range` values in `web/static/fonts/<family>.css` are copied from the
 packages' `wght.css`.

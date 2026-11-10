@@ -1,15 +1,13 @@
 // Package server is the HTTP handler: it picks the page for a request and
-// serves it together with the bundled static assets.
+// serves it. Pages are self-contained; the service serves no asset files.
 package server
 
 import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
-	"io/fs"
 	"log/slog"
 	"net/http"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -23,109 +21,52 @@ import (
 )
 
 const (
-	csp = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
-
 	maxHost      = 253
 	maxRequestID = 128
-
-	staticCache = "public, max-age=31536000, immutable"
-	themesPart  = "themes/"
 )
-
-// staticTypes lists the servable static extensions and their content types.
-var staticTypes = map[string]string{
-	".css":   "text/css; charset=utf-8",
-	".js":    "text/javascript; charset=utf-8",
-	".woff2": "font/woff2",
-	".txt":   "text/plain; charset=utf-8",
-}
 
 type server struct {
 	cfg    config.Config
 	render *render.Renderer
 	mode   *maintenance.Mode
-	shared fs.FS // web/static
-	themes fs.FS // web/themes/<configured theme>
 	now    func() time.Time
 	log    *slog.Logger
 }
 
-// New returns the handler. assets is the bundled web filesystem; only its
-// static directory and the configured theme's directory are ever served.
-func New(cfg config.Config, r *render.Renderer, m *maintenance.Mode, assets fs.FS, version string, now func() time.Time) http.Handler {
+// New returns the handler. now is the clock for details and Retry-After;
+// nil means time.Now.
+func New(cfg config.Config, r *render.Renderer, m *maintenance.Mode, now func() time.Time) http.Handler {
 	s := &server{cfg: cfg, render: r, mode: m, now: now, log: slog.Default()}
 	if now == nil {
 		s.now = time.Now
 	}
-	// Sub only fails for invalid paths; these are constants and the
-	// configured theme name is validated by config.
-	s.shared, _ = fs.Sub(assets, "static")
-	s.themes, _ = fs.Sub(assets, path.Join("themes", cfg.Theme))
-	_ = version // the version is part of the URL but not checked: any value serves
 	return s
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	get := req.Method == http.MethodGet || req.Method == http.MethodHead
-	switch {
-	case get && req.URL.Path == "/healthz":
+	if get && req.URL.Path == "/healthz" {
 		s.healthz(w, req)
-	case get && strings.HasPrefix(req.URL.Path, "/static/"):
-		s.static(w, req)
-	default:
-		s.page(w, req)
+		return
 	}
+	s.page(w, req)
+}
+
+// secure sets the headers every response carries.
+func secure(h http.Header) {
+	h.Set("Cache-Control", "no-store")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Referrer-Policy", "no-referrer")
+	h.Set("X-Frame-Options", "DENY")
 }
 
 func (s *server) healthz(w http.ResponseWriter, req *http.Request) {
 	h := w.Header()
+	secure(h)
 	h.Set("Content-Type", "text/plain; charset=utf-8")
-	h.Set("Cache-Control", "no-store")
-	h.Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
 	if req.Method != http.MethodHead {
 		_, _ = w.Write([]byte("ok\n"))
-	}
-}
-
-// static serves /static/<version>/<file> from web/static, and
-// /static/<version>/themes/<theme>/<file> from the configured theme only.
-func (s *server) static(w http.ResponseWriter, req *http.Request) {
-	rest := strings.TrimPrefix(req.URL.Path, "/static/")
-	_, name, ok := strings.Cut(rest, "/") // drop the version segment
-	if !ok || name == "" || path.Clean(name) != name || !fs.ValidPath(name) {
-		http.NotFound(w, req)
-		return
-	}
-	ct, ok := staticTypes[strings.ToLower(path.Ext(name))]
-	if !ok {
-		http.NotFound(w, req)
-		return
-	}
-
-	fsys := s.shared
-	if themed, isTheme := strings.CutPrefix(name, themesPart); isTheme {
-		theme, file, ok := strings.Cut(themed, "/")
-		if !ok || theme != s.cfg.Theme || file == "" {
-			http.NotFound(w, req)
-			return
-		}
-		fsys, name = s.themes, file
-	}
-
-	data, err := fs.ReadFile(fsys, name)
-	if err != nil {
-		http.NotFound(w, req)
-		return
-	}
-	h := w.Header()
-	h.Set("Content-Type", ct)
-	h.Set("Content-Length", strconv.Itoa(len(data)))
-	h.Set("Cache-Control", staticCache)
-	h.Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(http.StatusOK)
-	if req.Method != http.MethodHead {
-		_, _ = w.Write(data)
 	}
 }
 
@@ -201,18 +142,16 @@ func (s *server) page(w http.ResponseWriter, req *http.Request) {
 	}
 	if err != nil {
 		s.log.Error("render failed", "page", page.Key, "err", err)
+		secure(w.Header())
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
 	h := w.Header()
+	secure(h)
 	h.Set("Content-Type", ct)
 	h.Set("Content-Length", strconv.Itoa(buf.Len()))
-	h.Set("Cache-Control", "no-store")
-	h.Set("Content-Security-Policy", csp)
-	h.Set("X-Content-Type-Options", "nosniff")
-	h.Set("Referrer-Policy", "no-referrer")
-	h.Set("X-Frame-Options", "DENY")
+	h.Set("Content-Security-Policy", s.render.CSP())
 	h.Set("Content-Language", language)
 	h.Set("Vary", "Accept, Accept-Language")
 	if isMaintenance && !state.Until.IsZero() {

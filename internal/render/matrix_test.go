@@ -19,7 +19,8 @@ import (
 func TestMatrix(t *testing.T) {
 	keys := append(pages.Known(), "499", "599")
 	langs := []string{"de", "en", "pl", "fr"}
-	forbidden := []string{"{{", "<no value>", `style="`, "javascript:"}
+	// Checked case-insensitively against the whole page, inline CSS and JS included.
+	forbidden := []string{"{{", "<no value>", `style="`, `style='`, "javascript:", "<link", "/static"}
 
 	for _, theme := range config.Themes {
 		cfg := defaultConfig(t)
@@ -29,7 +30,7 @@ func TestMatrix(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: texts.Load: %v", theme, err)
 		}
-		r, err := New(cfg, cat, web.FS, "1.2.3")
+		r, err := New(cfg, cat, web.FS, "1.2.3", nil)
 		if err != nil {
 			t.Fatalf("%s: New: %v", theme, err)
 		}
@@ -45,11 +46,12 @@ func TestMatrix(t *testing.T) {
 					if want := html.EscapeString(title); !strings.Contains(out, want) {
 						t.Errorf("output lacks title %q", want)
 					}
-					if code := strconv.Itoa(p.Code); !strings.Contains(out, code) {
-						t.Errorf("output lacks code %s", code)
+					if want := "<title>" + strconv.Itoa(p.Code) + " · "; !strings.Contains(out, want) {
+						t.Errorf("<title> does not start with the code: lacks %q", want)
 					}
+					low := strings.ToLower(out)
 					for _, bad := range forbidden {
-						if strings.Contains(out, bad) {
+						if strings.Contains(low, bad) {
 							t.Errorf("output contains %q", bad)
 						}
 					}
