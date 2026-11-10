@@ -1,0 +1,77 @@
+/* Terminal theme: green phosphor screen with scanlines, a scan beam and
+   noise. theme.js adds the typing; without it the page shows its final state. */
+
+body.ep-theme-terminal {
+  background: #000 radial-gradient(#11581e, #041607) fixed;
+  color: rgba(128, 255, 128, .82);
+  font-family: "Inconsolata", ui-monospace, Menlo, monospace;
+  font-size: 1.45rem;
+  text-shadow: 0 0 1ex rgba(51, 255, 51, 1), 0 0 2px rgba(255, 255, 255, .8);
+}
+
+.t-page { position: relative; min-height: 100vh; min-height: 100dvh; overflow: hidden; }
+
+.t-noise, .t-overlay { position: fixed; pointer-events: none; }
+.t-noise {
+  inset: -50%; opacity: .07; animation: t-noise .4s steps(4) infinite;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+@keyframes t-noise { 0% { transform: translate(0, 0); } 25% { transform: translate(-5%, 3%); } 50% { transform: translate(4%, -4%); } 75% { transform: translate(-3%, -2%); } }
+
+/* Scanlines, plus the beam that sweeps down the screen. */
+.t-overlay {
+  inset: 0; z-index: 2;
+  background: repeating-linear-gradient(180deg, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, .3) 50%, rgba(0, 0, 0, 0) 100%);
+  background-size: auto 4px;
+}
+.t-overlay::before {
+  content: ""; position: absolute; inset: 0;
+  background-image: linear-gradient(0deg, transparent 0%, rgba(32, 128, 32, .2) 2%, rgba(32, 128, 32, .8) 3%, rgba(32, 128, 32, .2) 3%, transparent 100%);
+  background-repeat: no-repeat; animation: t-scan 7.5s linear infinite;
+}
+@keyframes t-scan { 0% { background-position: 0 -100vh; } 35%, 100% { background-position: 0 100vh; } }
+
+.t-screen {
+  position: relative; z-index: 1; min-height: 100vh; min-height: 100dvh; max-width: 1000px;
+  padding: 4rem; text-transform: uppercase; display: flex; flex-direction: column;
+}
+
+.t-page a { color: #fff; text-decoration: none; }
+
+.t-bar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4em 1.2em; font-size: .8em; opacity: .85; }
+.t-bar .ep-menu { justify-content: flex-start; gap: .2em .8em; }
+.t-bar .ep-langs { margin-left: auto; gap: 0; }
+.t-bar .ep-langs a { margin-left: .6em; color: rgba(128, 255, 128, .55); }
+.t-bar .ep-langs a:hover { color: #fff; }
+.t-bar .ep-langs a.on { color: #fff; }
+.t-bar .ep-langs a.on::before { content: "["; }
+.t-bar .ep-langs a.on::after { content: "]"; }
+
+/* Links read as [Label]. */
+.t-bar .ep-menu a::before, .t-lines a::before { content: "["; }
+.t-bar .ep-menu a::after, .t-lines a::after { content: "]"; }
+
+.t-screen h1 { font-size: 2.2em; margin: 1.2em 0 .6em; font-weight: 400; line-height: 1.2; }
+.t-code { color: #fff; }
+.t-cursor {
+  display: inline-block; width: .6em; height: 1em; background: rgba(128, 255, 128, .85);
+  vertical-align: -.12em; animation: t-blink 1s steps(1) infinite;
+}
+@keyframes t-blink { 50% { opacity: 0; } }
+
+.t-lines > p { margin: .5em 0; min-height: 1.2em; }
+.t-lines > p::before { content: "> "; }
+/* While theme.js types, a line (and its prompt) shows only once it starts. */
+.t-anim .t-lines > p:not(.t-live) { visibility: hidden; }
+
+.t-screen .ep-footer { margin-top: auto; padding-top: 2em; font-size: .62em; opacity: .7; }
+.t-screen .ep-footer a { color: inherit; }
+
+@media (max-width: 640px) {
+  body.ep-theme-terminal { font-size: 1.05rem; }
+  .t-screen { padding: 2rem 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-noise, .t-overlay::before, .t-cursor { animation: none; }
+}

@@ -1,0 +1,28 @@
+{{- /*
+  Terminal theme. The server renders the final state; theme.js clears the
+  lines in .t-lines and types them in again. Every direct <p> child of
+  .t-lines is one typed line.
+*/ -}}
+{{define "ep-sep"}} — {{end}}
+
+{{- define "page" -}}
+<div class="t-page">
+  <div class="t-noise" aria-hidden="true"></div>
+  <div class="t-overlay" aria-hidden="true"></div>
+  <div class="t-screen">
+    <div class="t-bar">
+      {{template "ep-menu" .}}
+      {{template "ep-langs" .}}
+    </div>
+    <h1><span data-t="ui.error">{{call .T "ui.error"}}</span> <span class="t-code">{{.Code}}</span><span class="t-cursor" aria-hidden="true"></span></h1>
+    <main class="t-lines">
+      <p data-t="pages.{{.PageKey}}.title">{{.Title}}</p>
+      <p data-t="pages.{{.PageKey}}.description">{{.Description}}</p>
+      {{template "ep-closing" .}}
+      {{template "ep-until" .}}
+      <p><span data-t="ui.please">{{call .T "ui.please"}}</span> <a href="/" data-action="back" data-t="ui.back">{{call .T "ui.back"}}</a> <span data-t="ui.or">{{call .T "ui.or"}}</span> <a href="" data-action="reload" data-t="ui.reload">{{call .T "ui.reload"}}</a>.</p>
+    </main>
+    {{template "ep-footer" .}}
+  </div>
+</div>
+{{- end}}
