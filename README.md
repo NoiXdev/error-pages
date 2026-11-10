@@ -31,6 +31,8 @@ themes and four languages, and it needs no setup to look good.
   copyright line.
 - No third-party requests, no cookies, no tracking. Pages work without JavaScript, on
   screens from 320 px wide, and respect `prefers-reduced-motion`.
+- Every page is self-contained: styles, fonts and scripts travel inside the page, so it
+  arrives complete in a single request even when everything behind it is down.
 - A strict Content Security Policy, and nothing about your upstream servers is leaked.
 - A very small image that runs read-only as a non-root user.
 
@@ -74,13 +76,21 @@ services:
       - traefik.http.services.error-pages.loadbalancer.server.port=8080
 ```
 
-Attach `ep-errors` to your own routers (`middlewares=ep-errors`) to use it.
+Attach `ep-errors` to your own routers (`middlewares=ep-errors`) to use it. If your
+sites are served over HTTPS only, give the catch-all router your TLS entrypoint and
+`tls=true` as well, or it never sees those requests.
+
+Proxies that keep the original path and pass the status in an `X-Code` header (such as
+the ingress-nginx custom error backend) work too. A path that names a page, like
+`/404.html`, always wins over `X-Code`.
 
 ## Maintenance mode
 
-Switch it on and off while the container runs. The state is kept in the `/data` volume:
+Switch it on and off while the container runs. The examples assume a container named
+`error-pages` with a volume on `/data`, where the state is kept:
 
 ```bash
+docker run -d --name error-pages -p 8080:8080 -v error-pages-data:/data noixdev/error-pages
 docker exec error-pages /error-pages maintenance on
 docker exec error-pages /error-pages maintenance on --until 2026-12-01T18:00:00Z
 docker exec error-pages /error-pages maintenance status
@@ -93,7 +103,8 @@ While it is on, every 5xx page is replaced by the maintenance page (status 503).
 `MAINTENANCE=true`.
 
 Mount a volume on `/data` if the switch should survive a restart:
-`docker run -v error-pages-data:/data ...`.
+`docker run --name error-pages -v error-pages-data:/data ...`. With `--read-only` the
+volume is required, because the switch writes its state to `/data`.
 
 ## Configuration
 
