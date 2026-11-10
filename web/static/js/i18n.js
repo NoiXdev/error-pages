@@ -23,8 +23,15 @@
   var current = root.lang;
   var STORE = 'ep-lang';
 
+  // has reports whether lang is an enabled language. Own keys only, so a
+  // stored "__proto__" or "constructor" never counts.
+  function has(lang) {
+    return typeof lang === 'string' && Object.prototype.hasOwnProperty.call(texts, lang);
+  }
+
   // t returns the text, or null when the key is absent.
   function t(lang, key) {
+    if (!has(lang)) return null;
     var m = texts[lang];
     return m && Object.prototype.hasOwnProperty.call(m, key) ? m[key] : null;
   }
@@ -60,7 +67,7 @@
   }
 
   function apply(lang) {
-    if (!texts[lang]) return;
+    if (!has(lang)) return;
     current = lang;
     root.lang = lang;
     // Empty or absent texts hide their element, so nothing stale remains.
@@ -97,13 +104,22 @@
     try { window.localStorage.setItem(STORE, lang); } catch (e) { /* storage unavailable */ }
   }
 
+  // stored returns the saved language, or null. A value that is not an
+  // enabled language is ignored and removed.
   function stored() {
-    try { return window.localStorage.getItem(STORE); } catch (e) { return null; }
+    try {
+      var v = window.localStorage.getItem(STORE);
+      if (v !== null && !has(v)) {
+        window.localStorage.removeItem(STORE);
+        return null;
+      }
+      return v;
+    } catch (e) { return null; }
   }
 
   var params = new URLSearchParams(window.location.search);
   var saved = stored();
-  if (!params.has('lang') && saved && saved !== current && texts[saved]) {
+  if (!params.has('lang') && saved && saved !== current && has(saved)) {
     apply(saved);
   } else {
     renderUntil(current);
@@ -116,7 +132,7 @@
     if (!a) return;
 
     var lang = a.getAttribute('data-lang');
-    if (lang && texts[lang]) {
+    if (lang && has(lang)) {
       ev.preventDefault();
       store(lang);
       if (params.has('lang')) {
