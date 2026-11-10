@@ -1,0 +1,58 @@
+{{- /*
+  Status theme: a diagnostic page with the browser → network → host chain.
+  .Failing names the link that is blamed; that node gets class "bad", a ✕
+  badge and chain.failed, the other two "ok", ✓ and chain.working. Icons
+  are inline SVG, styled from style.css only (no style attributes).
+*/ -}}
+{{define "s-state"}}
+{{- if .}}<span class="s-badge" aria-hidden="true">✕</span>{{else}}<span class="s-badge" aria-hidden="true">✓</span>{{end}}
+{{- end}}
+
+{{define "page" -}}
+<div class="s-page">
+  <main class="s-wrap">
+    <div class="s-top">{{template "ep-langs" .}}</div>
+    <h1><b><span data-t="ui.error">{{call .T "ui.error"}}</span> {{.Code}}</b> · <span data-t="pages.{{.PageKey}}.title">{{.Title}}</span></h1>
+    {{- with .Details}}
+    <p class="s-meta">{{$.DetailsAt}} · {{.Host}} · {{.RequestID}}</p>
+    {{- end}}
+    <ol class="s-chain">
+      <li class="s-node {{if eq .Failing "browser"}}bad{{else}}ok{{end}}" data-node="browser">
+        <div class="s-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M7 6.5h.01M10 6.5h.01"/></svg>{{template "s-state" (eq .Failing "browser")}}</div>
+        <div class="s-who" data-t="chain.you">{{call .T "chain.you"}}</div>
+        <div class="s-what" data-t="chain.browser">{{call .T "chain.browser"}}</div>
+        {{if eq .Failing "browser"}}<div class="s-st" data-t="chain.failed">{{call .T "chain.failed"}}</div>{{else}}<div class="s-st" data-t="chain.working">{{call .T "chain.working"}}</div>{{end}}
+      </li>
+      <li class="s-node {{if eq .Failing "network"}}bad{{else}}ok{{end}}" data-node="network">
+        <div class="s-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg>{{template "s-state" (eq .Failing "network")}}</div>
+        <div class="s-who" aria-hidden="true">&nbsp;</div>
+        <div class="s-what" data-t="chain.network">{{call .T "chain.network"}}</div>
+        {{if eq .Failing "network"}}<div class="s-st" data-t="chain.failed">{{call .T "chain.failed"}}</div>{{else}}<div class="s-st" data-t="chain.working">{{call .T "chain.working"}}</div>{{end}}
+      </li>
+      <li class="s-node {{if eq .Failing "host"}}bad{{else}}ok{{end}}" data-node="host">
+        <div class="s-ico"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="4" y="3" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/><path d="M8 6.5h.01M8 17.5h.01"/></svg>{{template "s-state" (eq .Failing "host")}}</div>
+        {{if and .Details .Details.Host}}<div class="s-who">{{.Details.Host}}</div>{{else}}<div class="s-who" aria-hidden="true">&nbsp;</div>{{end}}
+        <div class="s-what" data-t="chain.host">{{call .T "chain.host"}}</div>
+        {{if eq .Failing "host"}}<div class="s-st" data-t="chain.failed">{{call .T "chain.failed"}}</div>{{else}}<div class="s-st" data-t="chain.working">{{call .T "chain.working"}}</div>{{end}}
+      </li>
+    </ol>
+    <div class="s-info">
+      <section>
+        <h2 data-t="chain.happened">{{call .T "chain.happened"}}</h2>
+        <p data-t="pages.{{.PageKey}}.description">{{.Description}}</p>
+        {{template "ep-closing" .}}
+        {{template "ep-until" .}}
+      </section>
+      <section>
+        <h2 data-t="chain.cando">{{call .T "chain.cando"}}</h2>
+        <p data-t="advice.{{.Failing}}">{{call .T (print "advice." .Failing)}}</p>
+        {{template "ep-actions" .}}
+      </section>
+    </div>
+    <div class="s-foot">
+      {{template "ep-menu" .}}
+      {{template "ep-footer" .}}
+    </div>
+  </main>
+</div>
+{{- end}}

@@ -25,6 +25,7 @@ const (
 	pageFile   = "page.html.tmpl"
 	themeJS    = "theme.js"
 	untilFmt   = "2006-01-02 15:04 UTC"
+	detailsFmt = "2006-01-02 15:04:05 UTC"
 )
 
 // sharedPrefixes are the catalog key prefixes embedded for the client-side
@@ -93,6 +94,8 @@ type View struct {
 	Until     string // RFC 3339, or empty
 	UntilText string // ui.expected_back with the time in UTC, or empty
 	Details   *Details
+	DetailsAt string // Details.Time in UTC, or empty without details
+	Failing   string // failing chain link: "browser", "network" or "host"
 
 	Static     string
 	Theme      string
@@ -259,6 +262,7 @@ func (r *Renderer) view(req Request) View {
 		Description: desc,
 		Closing:     closing,
 		Details:     req.Details,
+		Failing:     string(req.Page.Failing()),
 		Static:      r.static,
 		Theme:       r.cfg.Theme,
 		HasThemeJS:  r.hasThemeJS,
@@ -285,6 +289,9 @@ func (r *Renderer) view(req Request) View {
 	f.Show = r.cfg.ShowFooter && (f.Name != "" || f.Version != "")
 	v.Footer = f
 
+	if req.Details != nil {
+		v.DetailsAt = req.Details.Time.UTC().Format(detailsFmt)
+	}
 	if !req.Until.IsZero() {
 		u := req.Until.UTC()
 		v.Until = u.Format(time.RFC3339)

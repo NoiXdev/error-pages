@@ -273,14 +273,80 @@ func TestLangQuery(t *testing.T) {
 }
 
 func TestDetails(t *testing.T) {
-	h := newHandler(t, env{"THEME": "glass"}, nil)
-	rec := do(h, "GET", "/404", map[string]string{"X-Request-Id": "abc\r\n" + strings.Repeat("z", 200), "X-Forwarded-Host": "example.org"})
+	h := newHandler(t, env{"THEME": "status"}, nil)
+	rec := do(h, "GET", "/404", map[string]string{
+		"X-Request-Id":     "abc\r\n" + strings.Repeat("z", 200),
+		"X-Forwarded-Host": "exa\tmple.org",
+	})
 	if rec.Code != 404 {
 		t.Fatal(rec.Code)
 	}
-	// Never panics and never leaks control characters into the page.
-	if strings.Contains(rec.Body.String(), "\r") {
+	body := rec.Body.String()
+	// Control characters are dropped and the ID is cut to 128 characters.
+	if strings.ContainsAny(body, "\r\t") {
 		t.Error("control character in body")
+	}
+	id := "abc" + strings.Repeat("z", 125)
+	want := `<p class="s-meta">2026-11-10 12:00:00 UTC · example.org · ` + id + `</p>`
+	if !strings.Contains(body, want) {
+		t.Errorf("body lacks %q", want)
+	}
+}
+
+func TestDetailsHidden(t *testing.T) {
+	h := newHandler(t, env{"THEME": "status", "SHOW_DETAILS": "false"}, nil)
+	body := do(h, "GET", "/502", map[string]string{"X-Forwarded-Host": "example.org", "X-Request-Id": "abc"}).Body.String()
+	if strings.Contains(body, "s-meta") || strings.Contains(body, "example.org") {
+		t.Error("details shown with SHOW_DETAILS=false")
+	}
+}
+
+func TestDetailsFirstForwardedHost(t *testing.T) {
+	h := newHandler(t, env{"THEME": "status"}, nil)
+	body := do(h, "GET", "/502", map[string]string{"X-Forwarded-Host": "a.example, b.example", "X-Request-Id": "abc"}).Body.String()
+	if !strings.Contains(body, " · a.example · abc</p>") {
+		t.Error("first forwarded host not shown")
+	}
+	if strings.Contains(body, "b.example") {
+		t.Error("second forwarded host leaked")
+	}
+}
+
+func TestDetailsTruncated(t *testing.T) {
+	h := newHandler(t, env{"THEME": "status"}, nil)
+	body := do(h, "GET", "/502", map[string]string{"X-Forwarded-Host": strings.Repeat("h", 2048), "X-Request-Id": "abc"}).Body.String()
+	if !strings.Contains(body, " · "+strings.Repeat("h", 253)+" · abc</p>") {
+		t.Error("host not shown truncated to 253 characters")
+	}
+	if strings.Contains(body, strings.Repeat("h", 254)) {
+		t.Error("host longer than 253 characters")
+	}
+}
+
+func TestSendSameHTTPCodeFalseJSON(t *testing.T) {
+	h := newHandler(t, env{"SEND_SAME_HTTP_CODE": "false"}, nil)
+	rec := do(h, "GET", "/503", map[string]string{"Accept": "application/json"})
+	if rec.Code != 200 {
+		t.Errorf("status %d, want 200", rec.Code)
+	}
+	var v struct{ Code int }
+	if err := json.Unmarshal(rec.Body.Bytes(), &v); err != nil || v.Code != 503 {
+		t.Errorf("json body: %v %q", err, rec.Body.String())
+	}
+}
+
+func TestRetryAfterPastUntil(t *testing.T) {
+	until := clock.Add(-time.Hour).Format(time.RFC3339)
+	h := newHandler(t, nil, &until)
+	rec := do(h, "GET", "/502", nil)
+	if rec.Code != 503 || !strings.Contains(rec.Body.String(), `data-page="maintenance"`) {
+		t.Fatalf("maintenance not active: %d", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "data-until") {
+		t.Error("end time shown although it is in the past")
+	}
+	if got := rec.Header().Get("Retry-After"); got != "" {
+		t.Errorf("Retry-After %q for an end time in the past", got)
 	}
 }
 

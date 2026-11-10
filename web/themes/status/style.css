@@ -1,0 +1,108 @@
+/* Status theme: diagnostic layout with the browser → network → host chain.
+   Light only, as designed. CSS only; the nodes pop in once and the failing
+   icon pulses, both off under reduced motion. */
+
+body.ep-theme-status {
+  --s-bg: #fff; --s-fg: #313131; --s-muted: #8a8a8a; --s-soft: #555;
+  --s-panel: #f7f7f7; --s-ico: #f2f2f2; --s-stroke: #6b6b6b; --s-dash: #d9d9d9;
+  --s-ok: #2fa84f; --s-bad: #d63b3b; --s-link: #2f6fd6;
+  background: var(--s-bg); color: var(--s-fg);
+  font-family: -apple-system, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+
+.s-wrap { max-width: 1000px; margin: 0 auto; padding: 40px 16px 24px; }
+.s-top { display: flex; justify-content: flex-end; font-size: 13px; }
+.s-top .ep-langs { gap: 12px; }
+.s-top .ep-langs a { color: #999; }
+.s-top .ep-langs a.on { color: var(--s-fg); font-weight: 600; }
+
+.s-wrap h1 { margin-top: 10px; font-size: clamp(30px, 5vw, 44px); font-weight: 300; line-height: 1.2; }
+.s-wrap h1 b { font-weight: 600; }
+.s-meta {
+  margin-top: 8px; font-size: 13px; color: var(--s-muted);
+  font-family: ui-monospace, Menlo, "Inconsolata", monospace; overflow-wrap: anywhere;
+}
+
+/* The chain: three columns joined by a dashed line behind the icons. */
+.s-chain {
+  list-style: none; padding: 0; margin: 48px 0 40px; position: relative;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
+}
+.s-chain::before {
+  content: ""; position: absolute; top: 44px; left: 16%; right: 16%;
+  border-top: 2px dashed var(--s-dash);
+}
+.s-node { text-align: center; position: relative; min-width: 0; animation: s-pop .5s ease both; }
+.s-node:nth-child(2) { animation-delay: .15s; }
+.s-node:nth-child(3) { animation-delay: .3s; }
+@keyframes s-pop { from { opacity: 0; transform: translateY(8px); } }
+
+.s-ico {
+  width: 88px; height: 88px; margin: 0 auto; border-radius: 50%; background: var(--s-ico);
+  display: grid; place-items: center; position: relative;
+}
+.s-ico svg { width: 42px; height: 42px; stroke: var(--s-stroke); fill: none; stroke-width: 1.6; stroke-linecap: round; }
+.s-badge {
+  position: absolute; right: -2px; bottom: -2px; width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px; line-height: 1;
+  border: 3px solid var(--s-bg);
+}
+.ok .s-badge { background: var(--s-ok); }
+.bad .s-badge { background: var(--s-bad); }
+.bad .s-ico { animation: s-pulse 1.8s ease-in-out infinite; }
+@keyframes s-pulse { 50% { box-shadow: 0 0 0 10px rgba(214, 59, 59, .12); } }
+
+.s-who { margin-top: 14px; font-size: 13px; color: var(--s-muted); overflow-wrap: anywhere; }
+.s-what { margin-top: 2px; font-size: 18px; font-weight: 600; }
+.s-st { margin-top: 2px; font-size: 15px; }
+.ok .s-st { color: var(--s-ok); }
+.bad .s-st { color: var(--s-bad); }
+
+/* "What happened?" and "What can I do?" side by side. */
+.s-info {
+  background: var(--s-panel); border-radius: 8px; padding: 28px;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px;
+}
+.s-info h2 { margin: 0 0 10px; font-size: 20px; font-weight: 600; }
+.s-info p { line-height: 1.65; color: var(--s-soft); }
+.s-info p + p { margin-top: 10px; }
+.s-info .ep-until { color: var(--s-fg); }
+.s-info .ep-actions { margin-top: 14px; gap: 8px 16px; }
+.s-info a { color: var(--s-link); text-decoration: none; }
+.s-info a:hover { text-decoration: underline; }
+
+.s-foot {
+  margin-top: 28px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  font-size: 12.5px; color: var(--s-muted);
+}
+.s-foot .ep-menu { justify-content: flex-start; gap: 6px 14px; }
+.s-foot a { color: #666; text-decoration: none; }
+.s-foot a:hover { color: var(--s-fg); }
+
+@media (max-width: 640px) {
+  .s-info { grid-template-columns: minmax(0, 1fr); padding: 22px; gap: 24px; }
+  .s-ico { width: 64px; height: 64px; }
+  .s-ico svg { width: 30px; height: 30px; }
+  .s-chain { margin: 36px 0 32px; }
+  .s-chain::before { top: 32px; }
+  .s-what { font-size: 15px; }
+  .s-st { font-size: 14px; }
+}
+
+/* Narrow phones: smaller icons and badges so three nodes still fit. */
+@media (max-width: 380px) {
+  .s-chain { gap: 6px; }
+  .s-ico { width: 52px; height: 52px; }
+  .s-ico svg { width: 26px; height: 26px; }
+  .s-chain::before { top: 26px; }
+  .s-badge { width: 24px; height: 24px; font-size: 12px; border-width: 2px; }
+  .s-what { font-size: 14px; }
+  .s-st { font-size: 13px; }
+  .s-info { padding: 18px; }
+}
+
+/* Nodes and the failing icon show their final state at once. */
+@media (prefers-reduced-motion: reduce) {
+  .s-node, .bad .s-ico { animation: none; }
+}
