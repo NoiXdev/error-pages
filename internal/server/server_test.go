@@ -130,11 +130,24 @@ func TestNoStaticAssets(t *testing.T) {
 
 func TestXCode(t *testing.T) {
 	h := newHandler(t, nil, nil)
-	if rec := do(h, "GET", "/404.html", map[string]string{"X-Code": "502"}); rec.Code != 502 {
-		t.Errorf("X-Code 502: %d", rec.Code)
-	}
-	if rec := do(h, "GET", "/404.html", map[string]string{"X-Code": "abc"}); rec.Code != 404 {
-		t.Errorf("X-Code abc: %d", rec.Code)
+	for _, tc := range []struct {
+		path, code string
+		want       int
+	}{
+		// The path does not name a page (ingress-nginx sends the original path).
+		{"/api/users", "502", 502},
+		{"/", "429", 429},
+		{"/foo", "abc", 404},
+		// A path naming a page wins over the header.
+		{"/404.html", "502", 404},
+		{"/internal.html", "200", 403},
+		{"/internal.html", "503", 403},
+		{"/503", "404", 503},
+		{"/499", "502", 499},
+	} {
+		if rec := do(h, "GET", tc.path, map[string]string{"X-Code": tc.code}); rec.Code != tc.want {
+			t.Errorf("%s with X-Code %s: %d, want %d", tc.path, tc.code, rec.Code, tc.want)
+		}
 	}
 }
 
@@ -379,8 +392,46 @@ func TestSanitize(t *testing.T) {
 	if got := sanitize("a\x00b\r\nc\x7fd", 128); got != "abcd" {
 		t.Errorf("sanitize = %q", got)
 	}
+	if got := sanitize("a\u202eb\u2066c\u200fd\u061ce", 128); got != "abcde" {
+		t.Errorf("bidi controls kept: %q", got)
+	}
 	if got := sanitize(strings.Repeat("é", 300), 253); len([]rune(got)) != 253 {
 		t.Errorf("truncate = %d runes", len([]rune(got)))
+	}
+}
+
+func TestNegotiateFormat(t *testing.T) {
+	for accept, want := range map[string]format{
+		"":                                formatHTML,
+		"text/html":                       formatHTML,
+		"application/json":                formatJSON,
+		"Application/JSON":                formatJSON,
+		"text/plain":                      formatPlain,
+		"text/html,application/json":      formatHTML, // tie goes to HTML
+		"application/json, text/html;q=0": formatJSON, // q=0 excludes
+		"application/json;q=0.9, text/html;q=0.8":   formatJSON,
+		"text/html;q=0.5, application/json":         formatJSON,
+		"text/plain, application/json;q=0.5":        formatPlain,
+		"*/*":                                       formatHTML,
+		"application/*":                             formatJSON,
+		"text/*":                                    formatHTML,
+		"text/*;q=0.1, text/plain":                  formatPlain,
+		"text/html;q=0, */*":                        formatJSON, // */* matches json at q=1 next
+		"application/json;q=0, text/plain;q=0":      formatHTML, // nothing acceptable: HTML
+		"image/png":                                 formatHTML,
+		"application/json;q=abc":                    formatHTML, // unparsable q
+		";;;,,,":                                    formatHTML,
+		"application/json ; q=1.0 ; charset=utf-8":  formatJSON,
+		"text/html;level=1;q=0.2, text/plain;q=0.3": formatPlain,
+	} {
+		if got := negotiateFormat(accept); got != want {
+			t.Errorf("%q: %d, want %d", accept, got, want)
+		}
+	}
+	// Entries past the cap are ignored.
+	long := strings.Repeat("image/png, ", 32) + "application/json"
+	if got := negotiateFormat(long); got != formatHTML {
+		t.Errorf("entry past the cap honoured: %d", got)
 	}
 }
 

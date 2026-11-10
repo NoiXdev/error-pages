@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/NoiXdev/error-pages/internal/config"
@@ -23,6 +24,7 @@ import (
 const (
 	maxHost      = 253
 	maxRequestID = 128
+	maxAccept    = 32 // Accept entries considered, as for Accept-Language
 )
 
 type server struct {
@@ -70,11 +72,15 @@ func (s *server) healthz(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// choosePage resolves the page from the path, else from X-Code, else the
+// default page. A path that names a page always wins, so a client header
+// cannot override a page a proxy rewrote the request to; X-Code serves
+// proxies that pass the original path (ingress-nginx).
 func (s *server) choosePage(req *http.Request) pages.Page {
-	if p, ok := pages.FromCode(req.Header.Get("X-Code")); ok {
+	if p, ok := pages.FromPath(req.URL.Path); ok {
 		return p
 	}
-	if p, ok := pages.FromPath(req.URL.Path); ok {
+	if p, ok := pages.FromCode(req.Header.Get("X-Code")); ok {
 		return p
 	}
 	p, _ := pages.Lookup(s.cfg.DefaultPage) // validated by config
@@ -89,18 +95,68 @@ const (
 	formatPlain
 )
 
+// offered lists the formats in order of preference for ties.
+var offered = [...]struct {
+	f        format
+	typ, sub string
+}{
+	{formatHTML, "text", "html"},
+	{formatJSON, "application", "json"},
+	{formatPlain, "text", "plain"},
+}
+
+// negotiateFormat picks the offered format with the highest q-value in an
+// Accept header. Each format takes the q of the most specific matching
+// range (type/subtype, then type/*, then */*); q=0 excludes it. Ties, an
+// empty or unparsable header and no acceptable format all give HTML.
 func negotiateFormat(accept string) format {
-	a := strings.ToLower(accept)
-	if strings.Contains(a, "text/html") {
-		return formatHTML
+	var (
+		q    [len(offered)]float64
+		spec = [len(offered)]int{-1, -1, -1}
+	)
+	for i, entry := range strings.SplitN(accept, ",", maxAccept+1) {
+		if i == maxAccept {
+			break
+		}
+		mt, params, _ := strings.Cut(entry, ";")
+		typ, sub, ok := strings.Cut(strings.ToLower(strings.TrimSpace(mt)), "/")
+		if !ok {
+			continue
+		}
+		qv := 1.0
+		for _, p := range strings.Split(params, ";") {
+			k, v, _ := strings.Cut(p, "=")
+			if !strings.EqualFold(strings.TrimSpace(k), "q") {
+				continue
+			}
+			f, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+			if err != nil || !(f >= 0 && f <= 1) {
+				return formatHTML
+			}
+			qv = f
+		}
+		for j, o := range offered {
+			level := -1
+			switch {
+			case typ == o.typ && sub == o.sub:
+				level = 2
+			case typ == o.typ && sub == "*":
+				level = 1
+			case typ == "*" && sub == "*":
+				level = 0
+			}
+			if level > spec[j] {
+				spec[j], q[j] = level, qv
+			}
+		}
 	}
-	switch {
-	case strings.Contains(a, "application/json"):
-		return formatJSON
-	case strings.Contains(a, "text/plain"):
-		return formatPlain
+	best, bestQ := formatHTML, 0.0
+	for j, o := range offered {
+		if spec[j] >= 0 && q[j] > bestQ {
+			best, bestQ = o.f, q[j]
+		}
 	}
-	return formatHTML
+	return best
 }
 
 func (s *server) page(w http.ResponseWriter, req *http.Request) {
@@ -185,12 +241,13 @@ func (s *server) requestID(req *http.Request) string {
 	return hex.EncodeToString(b[:])
 }
 
-// sanitize drops control characters and truncates to limit characters.
+// sanitize drops control characters and bidi controls (which could reorder
+// the surrounding text) and truncates to limit characters.
 func sanitize(s string, limit int) string {
 	var b strings.Builder
 	n := 0
 	for _, r := range s {
-		if r < 0x20 || r == 0x7f || (r >= 0x80 && r < 0xa0) || r == utf8.RuneError {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r < 0xa0) || r == utf8.RuneError || unicode.Is(unicode.Bidi_Control, r) {
 			continue
 		}
 		if n == limit {
