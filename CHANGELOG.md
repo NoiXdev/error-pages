@@ -1,4 +1,6 @@
-## 1.0.0-rc.1 (2026-11-10)
+## [1.0.0-rc.2](https://github.com/NoiXdev/error-pages/compare/v1.0.0-rc.1...v1.0.0-rc.2) (2026-11-10)
+
+## [1.0.0-rc.1](https://github.com/NoiXdev/error-pages/compare/396fdba6869b6e38f15b9df393df6017c96cba75...v1.0.0-rc.1) (2026-11-10)
 
 
 ### Features
