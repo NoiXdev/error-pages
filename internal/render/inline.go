@@ -26,7 +26,7 @@ var themeFonts = map[string][]string{
 	"glass":    {"inter"},
 	"classic":  {"inter"},
 	"clean":    {"inter"},
-	"status":   {"inter", "inconsolata"}, // Inconsolata is the monospace fallback
+	"status":   {"inter"}, // the details line uses the system monospace stack
 	"terminal": {"inconsolata"},
 }
 
@@ -77,6 +77,11 @@ func buildInline(assets fs.FS, theme string) (inline, error) {
 	}
 	if strings.Contains(strings.ToLower(j), "</script") {
 		return inline{}, fmt.Errorf("theme %s: JS contains </script", theme)
+	}
+	// "<!--" followed by "<script" puts the HTML parser into the
+	// double-escaped state, where "</script>" no longer ends the element.
+	if strings.Contains(j, "<!--") {
+		return inline{}, fmt.Errorf("theme %s: JS contains <!--", theme)
 	}
 	return inline{
 		style:  template.HTML("<style>" + c + "</style>"),   // bundled, checked above

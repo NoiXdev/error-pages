@@ -144,7 +144,12 @@
     later(id, shuffle, SHUFFLE_MS);
   }
 
-  document.addEventListener('ep:lang', start);
+  document.addEventListener('ep:lang', function () {
+    start();
+    // A page opened in a background tab would animate under throttled
+    // timers; show the final state at once.
+    if (document.hidden) finish();
+  });
   // A hidden tab throttles timers; show the final state instead of
   // resuming a half-typed page later.
   document.addEventListener('visibilitychange', function () {

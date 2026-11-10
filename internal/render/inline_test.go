@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/NoiXdev/error-pages/internal/config"
@@ -101,11 +102,18 @@ func TestPagesAreSelfContained(t *testing.T) {
 
 func TestThemeFonts(t *testing.T) {
 	families := map[string]string{"inter": `font-family: "Inter"`, "inconsolata": `font-family: "Inconsolata"`}
+	expected := map[string]string{
+		"glass": "inter", "classic": "inter", "clean": "inter",
+		"status": "inter", "terminal": "inconsolata",
+	}
 	for _, theme := range config.Themes {
 		t.Run(theme, func(t *testing.T) {
 			declared, ok := themeFonts[theme]
 			if !ok {
 				t.Fatal("theme has no font declaration in themeFonts")
+			}
+			if got := strings.Join(declared, ","); got != expected[theme] {
+				t.Errorf("themeFonts = %q, want %q", got, expected[theme])
 			}
 			style, err := fs.ReadFile(web.FS, "themes/"+theme+"/style.css")
 			if err != nil {
@@ -135,5 +143,37 @@ func TestThemeFonts(t *testing.T) {
 				t.Error("unicode-range descriptors lost")
 			}
 		})
+	}
+}
+
+// TestInlineBreakoutGuard checks that buildInline rejects theme sources that
+// could end the inline element early or switch the script into the
+// double-escaped state ("<!--" followed by "<script").
+func TestInlineBreakoutGuard(t *testing.T) {
+	for name, files := range map[string]fstest.MapFS{
+		"style":   {"themes/x/style.css": {Data: []byte("a{} </STYLE>")}},
+		"script":  {"themes/x/style.css": {}, "themes/x/theme.js": {Data: []byte("var a = '</Script>';")}},
+		"comment": {"themes/x/style.css": {}, "themes/x/theme.js": {Data: []byte("var a = '<!--';")}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := buildInline(testAssets(t, files), "x"); err == nil {
+				t.Error("buildInline accepted a breakout sequence")
+			}
+		})
+	}
+	if _, err := buildInline(testAssets(t, fstest.MapFS{"themes/x/style.css": {}}), "x"); err != nil {
+		t.Errorf("clean theme rejected: %v", err)
+	}
+}
+
+// TestStatusUsesSystemMonospace checks that the status theme's details line
+// relies on the system monospace stack instead of an embedded font.
+func TestStatusUsesSystemMonospace(t *testing.T) {
+	style, err := fs.ReadFile(web.FS, "themes/status/style.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(style), "font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;") {
+		t.Error("status style.css lacks the system monospace stack")
 	}
 }

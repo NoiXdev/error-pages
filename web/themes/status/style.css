@@ -21,7 +21,7 @@ body.ep-theme-status {
 .s-wrap h1 b { font-weight: 600; }
 .s-meta {
   margin-top: 8px; font-size: 13px; color: var(--s-muted);
-  font-family: ui-monospace, Menlo, "Inconsolata", monospace; overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere;
 }
 
 /* The chain: three columns joined by a dashed line behind the icons. */
