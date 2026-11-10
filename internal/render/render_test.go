@@ -340,6 +340,27 @@ func TestEscaping(t *testing.T) {
 	}
 }
 
+func TestOverrideTextsEscaped(t *testing.T) {
+	cfg := defaultConfig(t)
+	cat, err := texts.Load(web.FS, cfg.Theme, "", cfg.Languages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cat["en"]["pages.404.title"] = "<script>alert(1)</script>"
+	cat["en"]["pages.404.description"] = `"><img src=x>`
+	r, err := New(cfg, cat, web.FS, "1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := markup(renderHTML(t, r, Request{Page: page(t, "404"), Lang: "en"}))
+	if strings.Contains(out, "<script>alert") || strings.Contains(out, "<img src=x>") {
+		t.Error("override text not escaped")
+	}
+	if !strings.Contains(out, "&lt;script&gt;alert(1)&lt;/script&gt;") {
+		t.Error("escaped title missing")
+	}
+}
+
 func TestSingleLanguageHidesSwitch(t *testing.T) {
 	cfg := defaultConfig(t)
 	cfg.Languages = []string{"de"}
@@ -487,5 +508,38 @@ func TestFooterYearFromClock(t *testing.T) {
 	}
 	if out := renderHTML(t, r, Request{Page: page(t, "404"), Lang: "en"}); !strings.Contains(out, "© 2031 noidee") {
 		t.Error("footer year does not come from the injected clock")
+	}
+}
+
+// TestThemesDoNotLeak builds renderers for several themes in one process
+// and checks that a partial one theme overrides (terminal's ep-sep) and
+// its inline assets stay with that theme.
+func TestThemesDoNotLeak(t *testing.T) {
+	cfg := defaultConfig(t)
+	cfg.CopyrightName = "noidee"
+	byTheme := map[string]*Renderer{}
+	for _, theme := range []string{"terminal", "glass", "clean"} {
+		c := cfg
+		c.Theme = theme
+		byTheme[theme] = newRenderer(t, c, "1.2.3")
+	}
+	for theme, r := range byTheme {
+		out := renderHTML(t, r, Request{Page: page(t, "404"), Lang: "en"})
+		terminal := theme == "terminal"
+		if got := strings.Contains(out, "noidee — v1.2.3"); got != terminal {
+			t.Errorf("%s: terminal separator = %v", theme, got)
+		}
+		if got := strings.Contains(out, "noidee · v1.2.3"); got == terminal {
+			t.Errorf("%s: default separator = %v", theme, got)
+		}
+		if got := strings.Contains(out, "SHUFFLE_STEPS"); got != terminal {
+			t.Errorf("%s: terminal script inlined = %v", theme, got)
+		}
+		if !strings.Contains(out, "body.ep-theme-"+theme) {
+			t.Errorf("%s: own stylesheet missing", theme)
+		}
+	}
+	if byTheme["glass"].CSP() == byTheme["terminal"].CSP() {
+		t.Error("glass and terminal share one CSP")
 	}
 }

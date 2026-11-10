@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -93,10 +94,38 @@ func TestCleanRenders(t *testing.T) {
 	}
 }
 
-// node returns the opening tag of the chain node for link, or "".
+var liTag = regexp.MustCompile(`<li\s[^>]*>`)
+
+// node returns the opening <li> tag that carries data-node="<link>", in
+// whatever attribute order, or "".
 func node(out, link string) string {
-	m := regexp.MustCompile(`<li class="[^"]*" data-node="` + link + `">`).FindString(out)
-	return m
+	for _, tag := range liTag.FindAllString(out, -1) {
+		if strings.Contains(tag, ` data-node="`+link+`"`) {
+			return tag
+		}
+	}
+	return ""
+}
+
+// hasClass reports whether an opening tag's class attribute lists name.
+func hasClass(tag, name string) bool {
+	m := regexp.MustCompile(`\sclass="([^"]*)"`).FindStringSubmatch(tag)
+	return m != nil && slices.Contains(strings.Fields(m[1]), name)
+}
+
+func TestNodeHelperIgnoresAttributeOrder(t *testing.T) {
+	for _, out := range []string{
+		`<li class="s-node bad" data-node="host">`,
+		`<li data-node="host" class="s-node bad">`,
+		`<li data-x="1" data-node="host" class="bad s-node">`,
+	} {
+		if tag := node(out, "host"); tag == "" || !hasClass(tag, "bad") {
+			t.Errorf("%s: node/hasClass failed", out)
+		}
+	}
+	if node(`<li data-node="hosts">`, "host") != "" {
+		t.Error("matched a different node")
+	}
 }
 
 func TestStatusFailingLink(t *testing.T) {
@@ -110,7 +139,7 @@ func TestStatusFailingLink(t *testing.T) {
 			if tag == "" {
 				t.Fatalf("%s: no node %q", key, link)
 			}
-			isBad := strings.Contains(tag, `class="s-node bad"`)
+			isBad := hasClass(tag, "bad")
 			if isBad != (link == bad) {
 				t.Errorf("%s: node %s bad=%v, want %v", key, link, isBad, link == bad)
 			}
@@ -169,8 +198,29 @@ func TestStatusAdvice(t *testing.T) {
 	cfg := defaultConfig(t)
 	cfg.Theme = "status"
 	r := newRenderer(t, cfg, "1.2.3")
-	out := renderHTML(t, r, Request{Page: page(t, "maintenance"), Lang: "de"})
-	if !strings.Contains(out, `<p data-t="advice.host">Bitte versuchen Sie es in ein paar Minuten erneut.</p>`) {
-		t.Error("de advice.host missing")
+	for _, tc := range []struct{ key, lang, want string }{
+		{"maintenance", "de", `<p data-t="advice.host">Bitte versuchen Sie es in ein paar Minuten erneut.</p>`},
+		{"internal", "en", `<p data-t="advice.network">Check your connection or network access and reload the page in a few moments.</p>`},
+		{"429", "de", `<p data-t="advice.network">Prüfen Sie Ihre Verbindung bzw. Ihren Zugang zum Netz und laden Sie die Seite in einigen Augenblicken neu.</p>`},
+		{"400", "en", `<p data-t="advice.browser">Check the address and try again. If the problem persists, contact support.</p>`},
+		{"499", "de", `<p data-t="advice.browser">Prüfen Sie die Adresse und versuchen Sie es erneut. Besteht das Problem weiter, wenden Sie sich an den Support.</p>`},
+	} {
+		if out := renderHTML(t, r, Request{Page: page(t, tc.key), Lang: tc.lang}); !strings.Contains(out, tc.want) {
+			t.Errorf("%s/%s: lacks %q", tc.key, tc.lang, tc.want)
+		}
+	}
+}
+
+func TestClassicDigitsVariants(t *testing.T) {
+	cfg := defaultConfig(t)
+	cfg.Theme = "classic"
+	r := newRenderer(t, cfg, "1.2.3")
+	for key, want := range map[string]string{
+		"499":      `aria-label="499"><span>4</span><span>9</span><span>9</span></div>`,
+		"internal": `aria-label="403"><span>4</span><span>0</span><span>3</span></div>`,
+	} {
+		if out := renderHTML(t, r, Request{Page: page(t, key), Lang: "en"}); !strings.Contains(out, want) {
+			t.Errorf("%s: lacks %q", key, want)
+		}
 	}
 }

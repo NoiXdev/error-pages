@@ -135,6 +135,8 @@ func TestValidationErrors(t *testing.T) {
 		{"link without id", map[string]string{"LINKS": `[{"url":"/x"}]`}, "LINKS"},
 		{"duplicate link id", map[string]string{"LINKS": `[{"id":"a","url":"/x"},{"id":"a","url":"/y"}]`}, "duplicate"},
 		{"javascript url", map[string]string{"LINKS": `[{"id":"a","url":"javascript:alert(1)"}]`}, "LINKS"},
+		{"data url", map[string]string{"LINKS": `[{"id":"a","url":"data:text/html,x"}]`}, "LINKS"},
+		{"data copyright url", map[string]string{"COPYRIGHT_URL": "data:text/html,x"}, "COPYRIGHT_URL"},
 		{"javascript per-language url", map[string]string{"LINKS": `[{"id":"a","urls":{"de":"javascript:x"}}]`}, "LINKS"},
 		{"protocol-relative url", map[string]string{"LINKS": `[{"id":"a","url":"//evil.org"}]`}, "LINKS"},
 		{"tab slash url", map[string]string{"LINKS": `[{"id":"a","url":"/\t/evil"}]`}, "LINKS"},
