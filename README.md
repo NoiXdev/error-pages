@@ -68,15 +68,20 @@ services:
       - traefik.http.middlewares.ep-errors.errors.service=error-pages
       - traefik.http.middlewares.ep-errors.errors.query=/{status}.html
 
+      # Compression: the pages are self-contained and about 100-200 KB each.
+      - traefik.http.middlewares.ep-compress.compress=true
+
       # Catch-all: anything no other router handles gets the 404 page.
       - traefik.http.middlewares.ep-404.replacepath.path=/404.html
       - traefik.http.routers.ep-catchall.rule=HostRegexp(`.+`)
       - traefik.http.routers.ep-catchall.priority=1
-      - traefik.http.routers.ep-catchall.middlewares=ep-404
+      - traefik.http.routers.ep-catchall.middlewares=ep-404,ep-compress
       - traefik.http.services.error-pages.loadbalancer.server.port=8080
 ```
 
-Attach `ep-errors` to your own routers (`middlewares=ep-errors`) to use it. If your
+Attach `ep-compress,ep-errors` to your own routers (`middlewares=ep-compress,ep-errors`) to use it.
+Each page is about 100-200 KB because the fonts are inlined, so compress the responses
+at the proxy; `ep-compress` is listed first so it wraps the error pages as well. If your
 sites are served over HTTPS only, give the catch-all router your TLS entrypoint and
 `tls=true` as well, or it never sees those requests.
 
