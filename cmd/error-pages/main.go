@@ -82,13 +82,7 @@ func serveCtx(ctx context.Context, getenv func(string) (string, bool), stderr io
 	}
 	m := maintenance.New(cfg.Maintenance, cfg.MaintenanceUntil, cfg.MaintenanceFile, time.Now)
 
-	srv := &http.Server{
-		Handler:           server.New(cfg, rs, m, time.Now, nil),
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		MaxHeaderBytes:    16 << 10,
-	}
+	srv := newHTTPServer(server.New(cfg, rs, m, time.Now, nil))
 	ln, err := net.Listen("tcp", cfg.Listen)
 	if err != nil {
 		return fail(stderr, err)
@@ -113,6 +107,19 @@ func serveCtx(ctx context.Context, getenv func(string) (string, bool), stderr io
 		return fail(stderr, err)
 	}
 	return 0
+}
+
+// newHTTPServer returns the server with explicit limits on every phase of a
+// connection, so a slow or idle client cannot hold one open indefinitely.
+func newHTTPServer(h http.Handler) *http.Server {
+	return &http.Server{
+		Handler:           h,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    16 << 10,
+	}
 }
 
 // healthURL builds the probe URL for a LISTEN value. An empty or unspecified

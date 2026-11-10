@@ -234,3 +234,14 @@ func TestServeCtxThemeList(t *testing.T) {
 		t.Errorf("starting log lacks the theme list: %s", errb.String())
 	}
 }
+
+func TestHTTPServerHasExplicitTimeouts(t *testing.T) {
+	srv := newHTTPServer(http.NotFoundHandler())
+	if srv.IdleTimeout != 60*time.Second {
+		t.Errorf("IdleTimeout = %v, want 60s", srv.IdleTimeout)
+	}
+	if srv.ReadHeaderTimeout <= 0 || srv.ReadTimeout <= 0 || srv.WriteTimeout <= 0 {
+		t.Errorf("a read or write timeout is unset: %v %v %v",
+			srv.ReadHeaderTimeout, srv.ReadTimeout, srv.WriteTimeout)
+	}
+}
