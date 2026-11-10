@@ -12,8 +12,10 @@ on:
 permissions:
   contents: read
 
+# Keyed by workflow and event too, so a push run, a pull_request run and a
+# run called from release.yaml on the same ref never cancel each other.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
