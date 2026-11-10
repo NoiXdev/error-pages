@@ -3,8 +3,11 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"strings"
@@ -122,7 +125,9 @@ func Load(getenv func(string) (string, bool)) (Config, error) {
 			return Config{}, fmt.Errorf("config: CONFIG_FILE: %w", err)
 		}
 		var f fileConfig
-		if err := yaml.Unmarshal(raw, &f); err != nil {
+		dec := yaml.NewDecoder(bytes.NewReader(raw))
+		dec.KnownFields(true)
+		if err := dec.Decode(&f); err != nil && !errors.Is(err, io.EOF) {
 			return Config{}, fmt.Errorf("config: CONFIG_FILE %s: %w", path, err)
 		}
 		setIf(&c.Theme, f.Theme)
@@ -263,6 +268,9 @@ func (c *Config) validate(until string) error {
 		if l.ID == "" {
 			return fmt.Errorf("config: LINKS: link %d has no id", i)
 		}
+		if l.URL == "" && len(l.URLs) == 0 {
+			return fmt.Errorf("config: LINKS: link %q: needs url or urls", l.ID)
+		}
 		if err := checkLinkURL(l.URL); err != nil {
 			return fmt.Errorf("config: LINKS: link %q: url: %w", l.ID, err)
 		}
@@ -270,6 +278,19 @@ func (c *Config) validate(until string) error {
 			if err := checkLinkURL(u); err != nil {
 				return fmt.Errorf("config: LINKS: link %q: urls[%s]: %w", l.ID, lang, err)
 			}
+		}
+		if l.URL == "" {
+			for _, lang := range c.Languages {
+				if l.URLs[lang] == "" {
+					return fmt.Errorf("config: LINKS: link %q: no url for language %q", l.ID, lang)
+				}
+			}
+		}
+	}
+
+	if c.CopyrightURL != "" {
+		if err := checkLinkURL(c.CopyrightURL); err != nil {
+			return fmt.Errorf("config: COPYRIGHT_URL: %w", err)
 		}
 	}
 
@@ -290,6 +311,13 @@ func (c *Config) validate(until string) error {
 func checkLinkURL(s string) error {
 	if s == "" {
 		return nil
+	}
+	// Browsers strip tab, CR and LF inside URLs, so "/\t/evil" would become
+	// protocol-relative. Reject control characters and spaces up front.
+	for _, r := range s {
+		if r < 0x20 || r == 0x7f || r == ' ' {
+			return fmt.Errorf("%q contains a control character or space", s)
+		}
 	}
 	if strings.HasPrefix(s, "/") {
 		if strings.HasPrefix(s, "//") || strings.HasPrefix(s, `/\`) {

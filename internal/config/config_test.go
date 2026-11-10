@@ -136,6 +136,17 @@ func TestValidationErrors(t *testing.T) {
 		{"javascript url", map[string]string{"LINKS": `[{"id":"a","url":"javascript:alert(1)"}]`}, "LINKS"},
 		{"javascript per-language url", map[string]string{"LINKS": `[{"id":"a","urls":{"de":"javascript:x"}}]`}, "LINKS"},
 		{"protocol-relative url", map[string]string{"LINKS": `[{"id":"a","url":"//evil.org"}]`}, "LINKS"},
+		{"tab slash url", map[string]string{"LINKS": `[{"id":"a","url":"/\t/evil"}]`}, "LINKS"},
+		{"newline slash url", map[string]string{"LINKS": `[{"id":"a","url":"/\n/evil"}]`}, "LINKS"},
+		{"cr slash url", map[string]string{"LINKS": `[{"id":"a","url":"/\r/evil"}]`}, "LINKS"},
+		{"tab backslash url", map[string]string{"LINKS": `[{"id":"a","url":"/\t\\evil"}]`}, "LINKS"},
+		{"space in url", map[string]string{"LINKS": `[{"id":"a","url":"/a b"}]`}, "LINKS"},
+		{"javascript copyright url", map[string]string{"COPYRIGHT_URL": "javascript:alert(1)"}, "COPYRIGHT_URL"},
+		{"https copyright url", map[string]string{"COPYRIGHT_URL": "https://x.org"}, ""},
+		{"link without url or urls", map[string]string{"LINKS": `[{"id":"a"}]`}, "needs url or urls"},
+		{"urls missing a language", map[string]string{"LANGUAGES": "de,en", "LINKS": `[{"id":"a","urls":{"de":"/d"}}]`}, `"en"`},
+		{"urls cover all languages", map[string]string{"LANGUAGES": "de,en", "LINKS": `[{"id":"a","urls":{"de":"/d","en":"/e"}}]`}, ""},
+		{"maintenance default page", map[string]string{"DEFAULT_PAGE": "maintenance"}, ""},
 		{"https url", map[string]string{"LINKS": `[{"id":"a","url":"https://x.org/p"}]`}, ""},
 		{"bad until", map[string]string{"MAINTENANCE_UNTIL": "tomorrow"}, "MAINTENANCE_UNTIL"},
 		{"missing config file", map[string]string{"CONFIG_FILE": missing}, "CONFIG_FILE"},
@@ -180,5 +191,37 @@ func TestUntilFromEnvUTC(t *testing.T) {
 	}
 	if c.MaintenanceUntil.Hour() != 17 || c.MaintenanceUntil.Location() != time.UTC {
 		t.Fatalf("until = %v", c.MaintenanceUntil)
+	}
+}
+
+func TestUnknownYAMLKey(t *testing.T) {
+	p := writeFile(t, "thme: terminal\n")
+	_, err := Load(env(map[string]string{"CONFIG_FILE": p}))
+	if err == nil || !strings.HasPrefix(err.Error(), "config:") {
+		t.Fatalf("expected config error, got %v", err)
+	}
+}
+
+func TestEmptyYAMLFile(t *testing.T) {
+	p := writeFile(t, "")
+	c, err := Load(env(map[string]string{"CONFIG_FILE": p}))
+	if err != nil || c.Theme != "glass" {
+		t.Fatalf("err=%v theme=%q", err, c.Theme)
+	}
+}
+
+func TestEnvBoolOverridesFile(t *testing.T) {
+	p := writeFile(t, "show_footer: false\n")
+	c, err := Load(env(map[string]string{"CONFIG_FILE": p, "SHOW_FOOTER": "true"}))
+	if err != nil || !c.ShowFooter {
+		t.Fatalf("err=%v footer=%v", err, c.ShowFooter)
+	}
+}
+
+func TestEnvLanguagesReplaceFile(t *testing.T) {
+	p := writeFile(t, "languages: [de, fr, pl]\n")
+	c, err := Load(env(map[string]string{"CONFIG_FILE": p, "LANGUAGES": "en,de"}))
+	if err != nil || !reflect.DeepEqual(c.Languages, []string{"en", "de"}) {
+		t.Fatalf("err=%v languages=%v", err, c.Languages)
 	}
 }
