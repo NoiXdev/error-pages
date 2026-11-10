@@ -11,9 +11,7 @@
       </div>
       <h1 data-t="pages.{{.PageKey}}.title">{{.Title}}</h1>
       <p data-t="pages.{{.PageKey}}.description">{{.Description}}</p>
-      {{- if .Closing}}
-      <p data-t="pages.{{.PageKey}}.closing">{{.Closing}}</p>
-      {{- end}}
+      {{template "ep-closing" .}}
       {{template "ep-until" .}}
       {{template "ep-actions" .}}
     </main>

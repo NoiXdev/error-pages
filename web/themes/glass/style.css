@@ -54,8 +54,8 @@ body.ep-theme-glass {
 .g-top .ep-langs a.on { background: #f1ede7; color: #1d1a18; }
 
 .g-card h1 { margin: 0 0 22px; font-size: 21px; font-weight: 600; line-height: 1.4; color: #f2efe9; }
-.g-card p { margin: 0 0 18px; font-size: 15.5px; line-height: 1.7; color: #b6b0a8; }
-.g-card p:last-of-type { margin-bottom: 0; }
+.g-card p { margin: 0; font-size: 15.5px; line-height: 1.7; color: #b6b0a8; }
+.g-card p + p { margin-top: 18px; }
 .g-card .ep-until { color: #d8d2ca; }
 
 .g-card .ep-actions { margin-top: 28px; }

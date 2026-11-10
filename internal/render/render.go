@@ -155,7 +155,7 @@ func New(cfg config.Config, cat texts.Catalog, assets fs.FS, version string) (*R
 	_, err = fs.Stat(assets, path.Join(themesDir, cfg.Theme, themeJS))
 	r := &Renderer{
 		cfg:        cfg,
-		cat:        cat,
+		cat:        fill(cat, cfg.Languages, cfg.DefaultLanguage),
 		tmpl:       selected,
 		version:    version,
 		static:     StaticPrefix(version),
@@ -172,6 +172,32 @@ func New(cfg config.Config, cat texts.Catalog, assets fs.FS, version string) (*R
 		r.textsJSON[k] = js
 	}
 	return r, nil
+}
+
+// fill returns a copy of cat in which every enabled language has the same
+// key set: a key missing in a language takes the default language's text,
+// or "" when the default lacks it too. Server and client then agree on what
+// a language shows, and switching never leaves stale text behind.
+func fill(cat texts.Catalog, langs []string, def string) texts.Catalog {
+	keys := map[string]struct{}{}
+	for _, l := range langs {
+		for k := range cat[l] {
+			keys[k] = struct{}{}
+		}
+	}
+	out := make(texts.Catalog, len(langs))
+	for _, l := range langs {
+		loc := make(texts.Locale, len(keys))
+		for k := range keys {
+			v, ok := cat[l][k]
+			if !ok {
+				v = cat[def][k]
+			}
+			loc[k] = v
+		}
+		out[l] = loc
+	}
+	return out
 }
 
 // buildTextsJSON collects {lang: {key: text}} for the client-side switch.
@@ -235,9 +261,6 @@ func (r *Renderer) view(req Request) View {
 		Theme:       r.cfg.Theme,
 		HasThemeJS:  r.hasThemeJS,
 		TextsJSON:   r.textsJSON[req.Page.Key],
-	}
-	if _, ok := r.textsJSON[req.Page.Key]; !ok {
-		v.TextsJSON, _ = r.buildTextsJSON(req.Page.Key)
 	}
 	if len(r.cfg.Languages) > 1 {
 		for _, l := range r.cfg.Languages {

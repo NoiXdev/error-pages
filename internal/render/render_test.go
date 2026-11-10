@@ -122,7 +122,7 @@ func TestTextsJSON(t *testing.T) {
 	de := got["de"]
 	for key, want := range map[string]string{
 		"pages.404.title": "Seite nicht gefunden",
-		"ui.back":         de["ui.back"],
+		"ui.back":         "Zurück",
 		"link.imprint":    "Impressum",
 		"href.imprint":    "/impressum",
 	} {
@@ -140,6 +140,119 @@ func TestTextsJSON(t *testing.T) {
 	}
 	if !strings.Contains(out, `data-link="imprint"`) || !strings.Contains(out, `href="/imprint"`) {
 		t.Error("menu link missing")
+	}
+}
+
+// textsFor extracts the {lang: {key: text}} object from rendered HTML.
+func textsFor(t *testing.T, out string) map[string]map[string]string {
+	t.Helper()
+	const open = `<script type="application/json" id="ep-texts">`
+	start := strings.Index(out, open)
+	if start < 0 {
+		t.Fatal("no ep-texts script")
+	}
+	rest := out[start+len(open):]
+	var got map[string]map[string]string
+	if err := json.Unmarshal([]byte(rest[:strings.Index(rest, "</script>")]), &got); err != nil {
+		t.Fatalf("ep-texts is not JSON: %v", err)
+	}
+	return got
+}
+
+func TestMissingTextsFallBackToDefaultLanguage(t *testing.T) {
+	load := func(t *testing.T, cfg config.Config) texts.Catalog {
+		t.Helper()
+		cat, err := texts.Load(web.FS, cfg.Theme, "", cfg.Languages)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, l := range []string{"de", "pl", "fr"} {
+			delete(cat[l], "pages.maintenance.closing")
+		}
+		return cat
+	}
+
+	t.Run("default lacks it too", func(t *testing.T) {
+		cfg := defaultConfig(t)
+		cfg.DefaultLanguage = "de"
+		r, err := New(cfg, load(t, cfg), web.FS, "1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := renderHTML(t, r, Request{Page: page(t, "maintenance"), Lang: "de"})
+		if !strings.Contains(out, `data-t="pages.maintenance.closing" hidden`) {
+			t.Error("empty closing not rendered as hidden element")
+		}
+		got := textsFor(t, out)
+		v, ok := got["de"]["pages.maintenance.closing"]
+		if !ok || v != "" {
+			t.Errorf("de closing = %q, %v; want empty and present", v, ok)
+		}
+		if got["en"]["pages.maintenance.closing"] != "Thank you for your patience." {
+			t.Error("en closing lost")
+		}
+	})
+
+	t.Run("default has it", func(t *testing.T) {
+		cfg := defaultConfig(t) // default language en
+		r, err := New(cfg, load(t, cfg), web.FS, "1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := renderHTML(t, r, Request{Page: page(t, "maintenance"), Lang: "de"})
+		if got := textsFor(t, out)["pl"]["pages.maintenance.closing"]; got != "Thank you for your patience." {
+			t.Errorf("pl closing = %q, want the en fallback", got)
+		}
+		// Server and client agree: the de page shows the same fallback.
+		if !strings.Contains(out, `<p class="ep-closing" data-t="pages.maintenance.closing">Thank you for your patience.</p>`) {
+			t.Error("server render does not use the default-language fallback")
+		}
+	})
+
+	t.Run("same key set in every language", func(t *testing.T) {
+		cfg := defaultConfig(t)
+		r, err := New(cfg, load(t, cfg), web.FS, "1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := textsFor(t, renderHTML(t, r, Request{Page: page(t, "maintenance"), Lang: "en"}))
+		for l, m := range got {
+			if len(m) != len(got["en"]) {
+				t.Errorf("%s has %d keys, en has %d", l, len(m), len(got["en"]))
+			}
+		}
+	})
+}
+
+func TestClosingAlwaysRendered(t *testing.T) {
+	out := renderHTML(t, newRenderer(t, defaultConfig(t), "1"), Request{Page: page(t, "404"), Lang: "en"})
+	if !strings.Contains(out, `data-t="pages.404.closing" hidden></p>`) {
+		t.Error("404 page lacks the hidden closing element")
+	}
+}
+
+func TestFooterSeparatorOverride(t *testing.T) {
+	cfg := defaultConfig(t)
+	cfg.CopyrightName = "noidee"
+	cat, err := texts.Load(web.FS, cfg.Theme, "", cfg.Languages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	layout, err := web.FS.ReadFile("templates/layout.html.tmpl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assets := fstest.MapFS{
+		"templates/layout.html.tmpl":  {Data: layout},
+		"themes/glass/page.html.tmpl": {Data: []byte(`{{define "ep-sep"}} — {{end}}{{define "page"}}{{template "ep-footer" .}}{{end}}`)},
+	}
+	r, err := New(cfg, cat, assets, "1.2.3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := renderHTML(t, r, Request{Page: page(t, "404"), Lang: "en"})
+	if !strings.Contains(out, fmt.Sprintf("© %d noidee — v1.2.3", time.Now().Year())) {
+		t.Errorf("separator override not applied:\n%s", out)
 	}
 }
 

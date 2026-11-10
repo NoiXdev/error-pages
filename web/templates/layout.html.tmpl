@@ -1,8 +1,10 @@
 {{- /*
   Shared layout. Each theme defines "page" (the body content) and places the
-  partials ep-langs, ep-menu, ep-actions, ep-until and ep-footer where its
-  design puts them. Translatable elements carry data-t="<key>" so i18n.js
-  can swap their text in place.
+  partials ep-langs, ep-menu, ep-actions, ep-closing, ep-until and ep-footer
+  where its design puts them. Translatable elements carry data-t="<key>" so
+  i18n.js can swap their text in place. Optional texts are always rendered
+  and carry `hidden` while empty; i18n.js toggles it on a language switch.
+  A theme may redefine "ep-sep" (the footer separator, " · " by default).
 */ -}}
 {{define "layout" -}}
 <!DOCTYPE html>
@@ -41,6 +43,11 @@
 {{- define "ep-actions"}}<div class="ep-actions"><a href="/" data-action="back" data-t="ui.back">{{call .T "ui.back"}}</a><a href="" data-action="reload" data-t="ui.reload">{{call .T "ui.reload"}}</a></div>
 {{- end}}
 
+{{- define "ep-closing"}}<p class="ep-closing" data-t="pages.{{.PageKey}}.closing"{{if not .Closing}} hidden{{end}}>{{.Closing}}</p>
+{{- end}}
+
+{{- define "ep-sep"}} · {{end}}
+
 {{- define "ep-until"}}
 {{- if .Until}}<p class="ep-until" data-until="{{.Until}}">{{.UntilText}}</p>{{end}}
 {{- end}}
@@ -49,7 +56,7 @@
 {{- if .Footer.Show}}<div class="ep-footer">
 {{- with .Footer}}
 {{- if .Name}}© {{.Year}} {{if .URL}}<a href="{{.URL}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}{{end}}
-{{- if and .Name .Version}} · {{end}}
+{{- if and .Name .Version}}{{template "ep-sep"}}{{end}}
 {{- if .Version}}v{{.Version}}{{end}}
 {{- end -}}
 </div>{{end}}

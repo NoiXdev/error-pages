@@ -50,9 +50,9 @@ a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-r
 .ep-menu { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; }
 .ep-actions { display: flex; flex-wrap: wrap; gap: 10px 18px; }
 
-/* Without JS (no .ep-js on <html>), hide what only works with JS; themes
-   render their final state server-side, so nothing else depends on it. */
-html:not(.ep-js) .ep-js-only { display: none !important; }
+/* Optional texts stay in the DOM while empty; keep them hidden whatever
+   display a theme gives them. */
+[hidden] { display: none !important; }
 
 /* Shared reduced-motion rule: no movement, final state at once. */
 @media (prefers-reduced-motion: reduce) {
