@@ -133,6 +133,7 @@ func TestValidationErrors(t *testing.T) {
 		{"invalid default page", map[string]string{"DEFAULT_PAGE": "teapot"}, "DEFAULT_PAGE"},
 		{"malformed links", map[string]string{"LINKS": "{nope"}, "LINKS"},
 		{"link without id", map[string]string{"LINKS": `[{"url":"/x"}]`}, "LINKS"},
+		{"duplicate link id", map[string]string{"LINKS": `[{"id":"a","url":"/x"},{"id":"a","url":"/y"}]`}, "duplicate"},
 		{"javascript url", map[string]string{"LINKS": `[{"id":"a","url":"javascript:alert(1)"}]`}, "LINKS"},
 		{"javascript per-language url", map[string]string{"LINKS": `[{"id":"a","urls":{"de":"javascript:x"}}]`}, "LINKS"},
 		{"protocol-relative url", map[string]string{"LINKS": `[{"id":"a","url":"//evil.org"}]`}, "LINKS"},

@@ -264,10 +264,15 @@ func (c *Config) validate(until string) error {
 		return fmt.Errorf("config: DEFAULT_PAGE: invalid page %q", c.DefaultPage)
 	}
 
+	seen := make(map[string]bool, len(c.Links))
 	for i, l := range c.Links {
 		if l.ID == "" {
 			return fmt.Errorf("config: LINKS: link %d has no id", i)
 		}
+		if seen[l.ID] {
+			return fmt.Errorf("config: LINKS: duplicate link id %q", l.ID)
+		}
+		seen[l.ID] = true
 		if l.URL == "" && len(l.URLs) == 0 {
 			return fmt.Errorf("config: LINKS: link %q: needs url or urls", l.ID)
 		}
