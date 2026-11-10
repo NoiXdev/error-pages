@@ -82,6 +82,7 @@ type View struct {
 	Lang    string
 	Langs   []Lang
 	Code    int
+	Digits  []string // one entry per digit of Code, for themes that style each digit
 	PageKey string
 
 	T                           func(key string) string
@@ -251,6 +252,7 @@ func (r *Renderer) view(req Request) View {
 	v := View{
 		Lang:        lang,
 		Code:        req.Page.Code,
+		Digits:      strings.Split(strconv.Itoa(req.Page.Code), ""),
 		PageKey:     req.Page.Key,
 		T:           loc.T,
 		Title:       title,

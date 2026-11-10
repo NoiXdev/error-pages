@@ -1,0 +1,49 @@
+/* Classic theme: light gradient, huge gradient-filled code, pill buttons. CSS only. */
+
+body.ep-theme-classic {
+  background: linear-gradient(135deg, #f6f4ff 0%, #eef3ff 50%, #fdf2f8 100%);
+  background-attachment: fixed;
+  color: #1e1b2e;
+  font-family: -apple-system, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+.c-wrap { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
+.c-top { width: 100%; max-width: 1000px; display: flex; justify-content: flex-end; }
+.c-top .ep-langs { gap: 14px; font-size: 13px; font-weight: 600; }
+.c-top .ep-langs a { color: #8b86a3; }
+.c-top .ep-langs a:hover, .c-top .ep-langs a.on { color: #1e1b2e; }
+
+.c-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; max-width: 560px; width: 100%; }
+
+.c-digits { font-size: clamp(110px, 22vw, 220px); font-weight: 800; line-height: 1; letter-spacing: -.04em; display: flex; }
+.c-digits span {
+  background: linear-gradient(120deg, #6d5dfc, #c04dd8, #ff7a90, #6d5dfc); background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: c-hue 8s linear infinite, c-bob 3.2s ease-in-out infinite;
+}
+.c-digits span:nth-child(2) { animation-delay: 0s, .25s; }
+.c-digits span:nth-child(3) { animation-delay: 0s, .5s; }
+@keyframes c-hue { to { background-position: 300% 0; } }
+@keyframes c-bob { 50% { transform: translateY(-10px); } }
+
+.c-main h1 { margin: 12px 0; font-size: 26px; line-height: 1.3; }
+.c-main p { margin: 0 0 10px; color: #5d5875; line-height: 1.65; }
+.c-main .ep-until { color: #1e1b2e; }
+
+.c-main .ep-actions { gap: 12px; margin-top: 22px; justify-content: center; }
+.c-main .ep-actions a { padding: 11px 22px; border-radius: 999px; font-weight: 600; font-size: 14px; text-decoration: none; transition: transform .15s; }
+.c-main .ep-actions a:hover { transform: translateY(-2px); }
+.c-main .ep-actions a:first-child { background: #1e1b2e; color: #fff; }
+.c-main .ep-actions a:last-child { border: 1px solid #cfcae3; color: #1e1b2e; }
+
+.c-bottom { display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 16px; font-size: 12.5px; color: #8b86a3; text-align: center; }
+.c-bottom .ep-menu { gap: 6px 16px; }
+.c-bottom a { color: #5d5875; text-decoration: none; }
+.c-bottom a:hover { color: #1e1b2e; }
+
+/* No movement: the digits stay put, the gradient stays at its start. */
+@media (prefers-reduced-motion: reduce) {
+  .c-digits span { animation: none; }
+  .c-main .ep-actions a { transition: none; }
+  .c-main .ep-actions a:hover { transform: none; }
+}

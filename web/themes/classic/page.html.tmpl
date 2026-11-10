@@ -1,0 +1,19 @@
+{{define "page" -}}
+<div class="c-page">
+  <div class="c-wrap">
+    <div class="c-top">{{template "ep-langs" .}}</div>
+    <main class="c-main">
+      <div class="c-digits" role="img" aria-label="{{.Code}}">{{range .Digits}}<span>{{.}}</span>{{end}}</div>
+      <h1 data-t="pages.{{.PageKey}}.title">{{.Title}}</h1>
+      <p data-t="pages.{{.PageKey}}.description">{{.Description}}</p>
+      {{template "ep-closing" .}}
+      {{template "ep-until" .}}
+      {{template "ep-actions" .}}
+    </main>
+    <div class="c-bottom">
+      {{template "ep-menu" .}}
+      {{template "ep-footer" .}}
+    </div>
+  </div>
+</div>
+{{- end}}

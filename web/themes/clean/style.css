@@ -1,0 +1,44 @@
+/* Clean theme: code, divider and one paragraph. Light or dark follows
+   prefers-color-scheme; there is no toggle. CSS only. */
+
+body.ep-theme-clean {
+  --c-bg: #fff; --c-fg: #111; --c-muted: #777; --c-line: rgba(0, 0, 0, .2);
+  background: var(--c-bg); color: var(--c-fg);
+  font-family: -apple-system, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  body.ep-theme-clean { --c-bg: #0a0a0a; --c-fg: #ededed; --c-muted: #8f8f8f; --c-line: rgba(255, 255, 255, .25); }
+}
+
+.n-page { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+.n-wrap {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 24px 16px; text-align: center; animation: n-fade .8s ease both;
+}
+@keyframes n-fade { from { opacity: 0; } }
+
+.n-row { display: flex; align-items: center; gap: 20px; }
+.n-code { font-size: 24px; font-weight: 500; }
+.n-bar { width: 1px; height: 48px; background: var(--c-line); transform-origin: center; animation: n-grow .6s .2s ease both; }
+@keyframes n-grow { from { transform: scaleY(0); } }
+.n-row h1 { font-size: 14px; font-weight: 400; text-align: left; }
+
+.n-wrap p { max-width: 420px; margin-top: 22px; font-size: 13.5px; line-height: 1.7; color: var(--c-muted); }
+.n-wrap .ep-until { color: var(--c-fg); }
+.n-wrap .ep-actions { margin-top: 18px; justify-content: center; gap: 8px 16px; font-size: 13.5px; }
+.n-wrap a { color: var(--c-fg); }
+
+/* In flow (not fixed) so it never overlaps the content on short screens. */
+.n-bottom {
+  display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 6px 18px;
+  padding: 0 16px 18px; font-size: 12px; color: var(--c-muted); text-align: center;
+}
+.n-bottom a { color: var(--c-muted); text-decoration: none; }
+.n-bottom a:hover, .n-bottom .ep-langs a.on { color: var(--c-fg); }
+.n-bottom .ep-langs { gap: 10px; }
+
+/* The divider shows at full size, the page without fade. */
+@media (prefers-reduced-motion: reduce) {
+  .n-wrap, .n-bar { animation: none; }
+}

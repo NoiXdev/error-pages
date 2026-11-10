@@ -1,0 +1,16 @@
+{{define "page" -}}
+<div class="n-page">
+  <main class="n-wrap">
+    <div class="n-row"><span class="n-code">{{.Code}}</span><span class="n-bar" aria-hidden="true"></span><h1 data-t="pages.{{.PageKey}}.title">{{.Title}}</h1></div>
+    <p data-t="pages.{{.PageKey}}.description">{{.Description}}</p>
+    {{template "ep-closing" .}}
+    {{template "ep-until" .}}
+    {{template "ep-actions" .}}
+  </main>
+  <div class="n-bottom">
+    {{template "ep-langs" .}}
+    {{template "ep-menu" .}}
+    {{template "ep-footer" .}}
+  </div>
+</div>
+{{- end}}
