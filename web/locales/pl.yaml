@@ -1,0 +1,95 @@
+ui:
+  error: "Błąd"
+  back: "Wstecz"
+  reload: "Odśwież"
+  please: "Proszę"
+  or: "lub"
+  language: "Język"
+  expected_back: "Przewidywany powrót około {time}"
+chain:
+  you: "Ty"
+  browser: "Przeglądarka"
+  network: "Sieć"
+  host: "Serwer"
+  working: "Działa"
+  failed: "Błąd"
+  happened: "Co się stało?"
+  cando: "Co mogę zrobić?"
+advice:
+  browser: "Sprawdź adres i spróbuj ponownie. Jeśli problem nie ustąpi, skontaktuj się z pomocą techniczną."
+  network: "Sprawdź połączenie lub dostęp do sieci i odśwież stronę za kilka chwil."
+  host: "Spróbuj ponownie za kilka minut."
+pages:
+  "400":
+    title: "Nieprawidłowe żądanie"
+    description: "Twoja przeglądarka wysłała żądanie, którego ten serwer nie może przetworzyć."
+  "401":
+    title: "Wymagane logowanie"
+    description: "Aby wyświetlić tę stronę, musisz się zalogować."
+  "403":
+    title: "Odmowa dostępu"
+    description: "Nie masz uprawnień do wyświetlenia tej strony."
+  "404":
+    title: "Nie znaleziono strony"
+    description: "Strona, której szukasz, mogła zostać usunięta, przeniesiona lub jest tymczasowo niedostępna."
+  "405":
+    title: "Metoda niedozwolona"
+    description: "Użyta metoda żądania nie jest obsługiwana pod tym adresem."
+  "407":
+    title: "Wymagane uwierzytelnienie proxy"
+    description: "Zanim to żądanie zostanie obsłużone, musisz zalogować się na serwerze proxy."
+  "408":
+    title: "Przekroczono limit czasu"
+    description: "Serwer zbyt długo czekał na Twoje żądanie. Spróbuj ponownie."
+  "409":
+    title: "Konflikt"
+    description: "Żądanie jest sprzeczne z bieżącym stanem zasobu i nie mogło zostać zrealizowane."
+  "410":
+    title: "Zasób usunięty"
+    description: "Żądana strona została trwale usunięta i nie jest już dostępna."
+  "411":
+    title: "Wymagana długość"
+    description: "Serwer przyjmie to żądanie tylko z nagłówkiem Content-Length."
+  "412":
+    title: "Niespełniony warunek wstępny"
+    description: "Serwer uznał jeden z warunków żądania za niespełniony."
+  "413":
+    title: "Zbyt duże żądanie"
+    description: "Wysłane dane są większe, niż serwer może przyjąć."
+  "416":
+    title: "Zakres niemożliwy do spełnienia"
+    description: "Żądany zakres wykracza poza dostępne dane."
+  "418":
+    title: "Jestem czajniczkiem"
+    description: "Parzenie kawy w czajniczku do herbaty niestety nie jest obsługiwane."
+  "429":
+    title: "Zbyt wiele żądań"
+    description: "Wysłano zbyt wiele żądań w krótkim czasie. Odczekaj chwilę."
+  "500":
+    title: "Wewnętrzny błąd serwera"
+    description: "Na serwerze wystąpił nieoczekiwany błąd. Zajmujemy się tym."
+  "502":
+    title: "Błędna brama"
+    description: "Serwer otrzymał nieprawidłową odpowiedź od usługi nadrzędnej."
+  "503":
+    title: "Usługa tymczasowo niedostępna"
+    description: "Usługa jest obecnie przeciążona lub nieosiągalna. Spróbuj ponownie za chwilę."
+  "504":
+    title: "Przekroczono limit czasu bramy"
+    description: "Usługa nadrzędna nie odpowiedziała na czas. Spróbuj ponownie za chwilę."
+  "505":
+    title: "Nieobsługiwana wersja HTTP"
+    description: "Serwer nie obsługuje wersji HTTP użytej w żądaniu."
+  "maintenance":
+    title: "Ta strona jest tymczasowo niedostępna"
+    description: "Obecnie prowadzimy prace konserwacyjne, aby zapewnić bezpieczne działanie tej strony. Strona powinna być wkrótce ponownie dostępna."
+    closing: "Dziękujemy za wyrozumiałość."
+  "internal":
+    title: "Dostępne tylko wewnętrznie"
+    description: "Ta usługa jest dostępna wyłącznie z sieci wewnętrznej. Najpierw się z nią połącz, a następnie odśwież stronę."
+  "4xx":
+    title: "Błąd klienta"
+    description: "Żądanie nie mogło zostać przetworzone. Sprawdź je i spróbuj ponownie."
+  "5xx":
+    title: "Błąd serwera"
+    description: "Na serwerze wystąpił błąd. Spróbuj ponownie za chwilę."

@@ -1,0 +1,95 @@
+ui:
+  error: "Error"
+  back: "Go back"
+  reload: "Reload"
+  please: "Please"
+  or: "or"
+  language: "Language"
+  expected_back: "Expected back around {time}"
+chain:
+  you: "You"
+  browser: "Browser"
+  network: "Network"
+  host: "Host"
+  working: "Working"
+  failed: "Error"
+  happened: "What happened?"
+  cando: "What can I do?"
+advice:
+  browser: "Check the address and try again. If the problem persists, contact support."
+  network: "Check your connection or network access and reload the page in a few moments."
+  host: "Please try again in a few minutes."
+pages:
+  "400":
+    title: "Bad request"
+    description: "Your browser sent a request this server could not understand."
+  "401":
+    title: "Sign-in required"
+    description: "You need to sign in to view this page."
+  "403":
+    title: "Access denied"
+    description: "You do not have permission to view this page."
+  "404":
+    title: "Page not found"
+    description: "The page you are looking for might have been removed, renamed or is temporarily unavailable."
+  "405":
+    title: "Method not allowed"
+    description: "The request method is not supported for this address."
+  "407":
+    title: "Proxy authentication required"
+    description: "You need to sign in to a proxy server before this request can be served."
+  "408":
+    title: "Request timeout"
+    description: "The server timed out waiting for your request. Please try again."
+  "409":
+    title: "Conflict"
+    description: "The request conflicts with the current state of the resource and could not be completed."
+  "410":
+    title: "Gone"
+    description: "The requested page has been permanently removed and is no longer available."
+  "411":
+    title: "Length required"
+    description: "The server only accepts this request with a Content-Length header."
+  "412":
+    title: "Precondition failed"
+    description: "A condition in the request was evaluated as false by the server."
+  "413":
+    title: "Payload too large"
+    description: "The data you sent is larger than the server is willing to accept."
+  "416":
+    title: "Range not satisfiable"
+    description: "The requested range lies outside the available data."
+  "418":
+    title: "I’m a teapot"
+    description: "Brewing coffee with a teapot is, sadly, not supported."
+  "429":
+    title: "Too many requests"
+    description: "You have sent too many requests in a short time. Please wait a moment."
+  "500":
+    title: "Internal server error"
+    description: "Something went wrong on the server. We are looking into it."
+  "502":
+    title: "Bad gateway"
+    description: "The server received an invalid response from an upstream service."
+  "503":
+    title: "Service temporarily unavailable"
+    description: "The service is overloaded or unreachable at the moment. Please try again shortly."
+  "504":
+    title: "Gateway timeout"
+    description: "An upstream service did not respond in time. Please try again shortly."
+  "505":
+    title: "HTTP version not supported"
+    description: "The server does not support the HTTP version used in the request."
+  "maintenance":
+    title: "This website is temporarily unavailable"
+    description: "We are currently carrying out technical maintenance to keep this website running securely. It should be available again shortly."
+    closing: "Thank you for your patience."
+  "internal":
+    title: "Available internally only"
+    description: "This service can only be reached from the internal network. Please connect to it first, then reload this page."
+  "4xx":
+    title: "Client error"
+    description: "The request could not be processed. Please check it and try again."
+  "5xx":
+    title: "Server error"
+    description: "The server encountered an error. Please try again shortly."

@@ -1,0 +1,95 @@
+ui:
+  error: "Fehler"
+  back: "Zurück"
+  reload: "Neu laden"
+  please: "Bitte"
+  or: "oder"
+  language: "Sprache"
+  expected_back: "Voraussichtlich zurück gegen {time}"
+chain:
+  you: "Sie"
+  browser: "Browser"
+  network: "Netzwerk"
+  host: "Server"
+  working: "Funktioniert"
+  failed: "Fehler"
+  happened: "Was ist passiert?"
+  cando: "Was kann ich tun?"
+advice:
+  browser: "Prüfen Sie die Adresse und versuchen Sie es erneut. Besteht das Problem weiter, wenden Sie sich an den Support."
+  network: "Prüfen Sie Ihre Verbindung bzw. Ihren Zugang zum Netz und laden Sie die Seite in einigen Augenblicken neu."
+  host: "Bitte versuchen Sie es in ein paar Minuten erneut."
+pages:
+  "400":
+    title: "Ungültige Anfrage"
+    description: "Ihr Browser hat eine Anfrage gesendet, die dieser Server nicht verarbeiten kann."
+  "401":
+    title: "Anmeldung erforderlich"
+    description: "Für diese Seite müssen Sie sich anmelden."
+  "403":
+    title: "Zugriff verweigert"
+    description: "Sie haben keine Berechtigung, diese Seite aufzurufen."
+  "404":
+    title: "Seite nicht gefunden"
+    description: "Die gesuchte Seite wurde möglicherweise entfernt, umbenannt oder ist vorübergehend nicht verfügbar."
+  "405":
+    title: "Methode nicht erlaubt"
+    description: "Die verwendete Anfragemethode wird für diese Adresse nicht unterstützt."
+  "407":
+    title: "Proxy-Anmeldung erforderlich"
+    description: "Bevor diese Anfrage bearbeitet werden kann, müssen Sie sich an einem Proxy-Server anmelden."
+  "408":
+    title: "Zeitüberschreitung"
+    description: "Der Server hat zu lange auf Ihre Anfrage gewartet. Bitte versuchen Sie es erneut."
+  "409":
+    title: "Konflikt"
+    description: "Die Anfrage steht im Konflikt mit dem aktuellen Zustand der Ressource und konnte nicht abgeschlossen werden."
+  "410":
+    title: "Nicht mehr verfügbar"
+    description: "Die angeforderte Seite wurde dauerhaft entfernt und ist nicht mehr verfügbar."
+  "411":
+    title: "Längenangabe erforderlich"
+    description: "Der Server akzeptiert diese Anfrage nur mit einer Längenangabe (Content-Length)."
+  "412":
+    title: "Vorbedingung fehlgeschlagen"
+    description: "Eine Bedingung der Anfrage wurde vom Server als nicht erfüllt bewertet."
+  "413":
+    title: "Anfrage zu groß"
+    description: "Die gesendeten Daten sind größer, als der Server annehmen kann."
+  "416":
+    title: "Bereich nicht erfüllbar"
+    description: "Der angeforderte Datenbereich liegt außerhalb der verfügbaren Daten."
+  "418":
+    title: "Ich bin eine Teekanne"
+    description: "Kaffee kochen mit einer Teekanne wird leider nicht unterstützt."
+  "429":
+    title: "Zu viele Anfragen"
+    description: "Sie haben in kurzer Zeit zu viele Anfragen gesendet. Bitte warten Sie einen Moment."
+  "500":
+    title: "Interner Serverfehler"
+    description: "Auf dem Server ist ein unerwarteter Fehler aufgetreten. Wir kümmern uns darum."
+  "502":
+    title: "Fehlerhaftes Gateway"
+    description: "Der Server hat eine ungültige Antwort von einem nachgelagerten Dienst erhalten."
+  "503":
+    title: "Dienst vorübergehend nicht verfügbar"
+    description: "Der Dienst ist im Moment überlastet oder nicht erreichbar. Bitte versuchen Sie es in Kürze erneut."
+  "504":
+    title: "Zeitüberschreitung am Gateway"
+    description: "Ein nachgelagerter Dienst hat nicht rechtzeitig geantwortet. Bitte versuchen Sie es in Kürze erneut."
+  "505":
+    title: "HTTP-Version nicht unterstützt"
+    description: "Der Server unterstützt die in der Anfrage verwendete HTTP-Version nicht."
+  "maintenance":
+    title: "Diese Website ist vorübergehend nicht erreichbar"
+    description: "Aktuell führen wir technische Wartungsarbeiten durch, um den sicheren Betrieb dieser Website zu gewährleisten. Die Seite steht Ihnen voraussichtlich in Kürze wieder zur Verfügung."
+    closing: "Vielen Dank für Ihr Verständnis."
+  "internal":
+    title: "Nur intern erreichbar"
+    description: "Dieser Dienst ist nur aus dem internen Netz erreichbar. Bitte verbinden Sie sich zuerst damit und laden Sie die Seite dann neu."
+  "4xx":
+    title: "Clientfehler"
+    description: "Die Anfrage konnte nicht verarbeitet werden. Bitte prüfen Sie Ihre Eingabe und versuchen Sie es erneut."
+  "5xx":
+    title: "Serverfehler"
+    description: "Auf dem Server ist ein Fehler aufgetreten. Bitte versuchen Sie es in Kürze erneut."

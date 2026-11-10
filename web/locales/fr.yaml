@@ -1,0 +1,95 @@
+ui:
+  error: "Erreur"
+  back: "Retour"
+  reload: "Recharger"
+  please: "Veuillez"
+  or: "ou"
+  language: "Langue"
+  expected_back: "Retour prévu vers {time}"
+chain:
+  you: "Vous"
+  browser: "Navigateur"
+  network: "Réseau"
+  host: "Serveur"
+  working: "Fonctionne"
+  failed: "Erreur"
+  happened: "Que s’est-il passé ?"
+  cando: "Que puis-je faire ?"
+advice:
+  browser: "Vérifiez l’adresse et réessayez. Si le problème persiste, contactez l’assistance."
+  network: "Vérifiez votre connexion ou votre accès au réseau et rechargez la page dans quelques instants."
+  host: "Veuillez réessayer dans quelques minutes."
+pages:
+  "400":
+    title: "Requête incorrecte"
+    description: "Votre navigateur a envoyé une requête que ce serveur ne peut pas traiter."
+  "401":
+    title: "Connexion requise"
+    description: "Vous devez vous connecter pour afficher cette page."
+  "403":
+    title: "Accès refusé"
+    description: "Vous n’avez pas l’autorisation d’afficher cette page."
+  "404":
+    title: "Page introuvable"
+    description: "La page que vous recherchez a peut-être été supprimée, renommée ou est temporairement indisponible."
+  "405":
+    title: "Méthode non autorisée"
+    description: "La méthode de requête utilisée n’est pas prise en charge pour cette adresse."
+  "407":
+    title: "Authentification proxy requise"
+    description: "Vous devez vous authentifier auprès d’un serveur proxy avant que cette requête puisse être traitée."
+  "408":
+    title: "Délai dépassé"
+    description: "Le serveur a attendu votre requête trop longtemps. Veuillez réessayer."
+  "409":
+    title: "Conflit"
+    description: "La requête est en conflit avec l’état actuel de la ressource et n’a pas pu aboutir."
+  "410":
+    title: "Ressource supprimée"
+    description: "La page demandée a été définitivement supprimée et n’est plus disponible."
+  "411":
+    title: "Longueur requise"
+    description: "Le serveur n’accepte cette requête qu’avec un en-tête Content-Length."
+  "412":
+    title: "Échec de la précondition"
+    description: "Le serveur a évalué une condition de la requête comme non remplie."
+  "413":
+    title: "Requête trop volumineuse"
+    description: "Les données envoyées dépassent la taille que le serveur peut accepter."
+  "416":
+    title: "Plage non satisfaisable"
+    description: "La plage demandée se situe en dehors des données disponibles."
+  "418":
+    title: "Je suis une théière"
+    description: "Préparer du café avec une théière n’est malheureusement pas possible."
+  "429":
+    title: "Trop de requêtes"
+    description: "Vous avez envoyé trop de requêtes en peu de temps. Veuillez patienter un instant."
+  "500":
+    title: "Erreur interne du serveur"
+    description: "Une erreur inattendue s’est produite sur le serveur. Nous nous en occupons."
+  "502":
+    title: "Passerelle incorrecte"
+    description: "Le serveur a reçu une réponse invalide d’un service en amont."
+  "503":
+    title: "Service temporairement indisponible"
+    description: "Le service est actuellement surchargé ou injoignable. Veuillez réessayer sous peu."
+  "504":
+    title: "Délai de passerelle dépassé"
+    description: "Un service en amont n’a pas répondu à temps. Veuillez réessayer sous peu."
+  "505":
+    title: "Version HTTP non prise en charge"
+    description: "Le serveur ne prend pas en charge la version HTTP utilisée dans la requête."
+  "maintenance":
+    title: "Ce site est temporairement indisponible"
+    description: "Nous effectuons actuellement une maintenance technique afin de garantir le fonctionnement sécurisé de ce site. Il sera de nouveau accessible sous peu."
+    closing: "Merci de votre compréhension."
+  "internal":
+    title: "Accessible uniquement en interne"
+    description: "Ce service n’est accessible que depuis le réseau interne. Veuillez d’abord vous y connecter, puis recharger la page."
+  "4xx":
+    title: "Erreur du client"
+    description: "La requête n’a pas pu être traitée. Veuillez la vérifier et réessayer."
+  "5xx":
+    title: "Erreur du serveur"
+    description: "Le serveur a rencontré une erreur. Veuillez réessayer sous peu."
