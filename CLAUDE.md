@@ -43,6 +43,7 @@ embedded, shipped as a `scratch` Docker image (`noixdev/error-pages`). Module pa
 ```bash
 make test    # go test ./...
 make lint    # golangci-lint run ./...
+make vuln    # govulncheck ./... (tool pinned in tools/go.mod)
 make run     # go run the server
 make build   # bin/error-pages
 ```

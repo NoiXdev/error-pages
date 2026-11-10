@@ -11,6 +11,7 @@ is optional and only needed to build the image.
 ```bash
 make test    # go test ./...
 make lint    # golangci-lint run ./...
+make vuln    # govulncheck ./... (tool pinned in tools/go.mod)
 make run     # start the server on :8080
 make build   # build bin/error-pages
 ```

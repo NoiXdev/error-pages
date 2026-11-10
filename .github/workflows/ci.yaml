@@ -37,8 +37,13 @@ jobs:
       - name: go test
         run: go test -race ./...
 
+      # Both tools are pinned in tools/go.mod (checksums in tools/go.sum),
+      # so the main module's go.mod stays free of them.
       - name: actionlint
-        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+        run: go tool -modfile=tools/go.mod actionlint
+
+      - name: govulncheck
+        run: go tool -modfile=tools/go.mod govulncheck ./...
 
   image:
     name: Build and smoke-test the image
