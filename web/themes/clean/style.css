@@ -2,7 +2,7 @@
    prefers-color-scheme; there is no toggle. CSS only. */
 
 body.ep-theme-clean {
-  --c-bg: #fff; --c-fg: #111; --c-muted: #777; --c-line: rgba(0, 0, 0, .2);
+  --c-bg: #fff; --c-fg: #111; --c-muted: #6b6b6b; --c-line: rgba(0, 0, 0, .2);
   background: var(--c-bg); color: var(--c-fg);
   font-family: -apple-system, "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
   color-scheme: light dark;
@@ -36,10 +36,12 @@ body.ep-theme-clean {
 }
 .n-bottom a { color: var(--c-muted); text-decoration: none; }
 .n-bottom a:hover, .n-bottom .ep-langs a.on { color: var(--c-fg); }
-/* Languages and menu links are separated by " · ", as in the mockup. */
+/* Languages and menu links are separated by " · ", as in the mockup. The
+   second content value hides the dot from screen readers; browsers without
+   alt text for content keep the first. */
 .n-bottom .ep-langs, .n-bottom .ep-menu { gap: 4px; }
 .n-bottom .ep-langs a + a::before, .n-bottom .ep-menu a + a::before {
-  content: "·"; margin-right: 4px; color: var(--c-muted); pointer-events: none;
+  content: "·"; content: "·" / ""; margin-right: 4px; color: var(--c-muted); pointer-events: none;
 }
 
 /* The divider shows at full size, the page without fade. */

@@ -145,6 +145,11 @@
   }
 
   document.addEventListener('ep:lang', start);
+  // A hidden tab throttles timers; show the final state instead of
+  // resuming a half-typed page later.
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) finish();
+  });
   if (motion) {
     var onChange = function () { if (motion.matches) finish(); };
     if (motion.addEventListener) motion.addEventListener('change', onChange);

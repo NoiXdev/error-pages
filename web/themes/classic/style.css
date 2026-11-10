@@ -10,7 +10,7 @@ body.ep-theme-classic {
 .c-wrap { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
 .c-top { width: 100%; max-width: 1000px; display: flex; justify-content: flex-end; }
 .c-top .ep-langs { gap: 14px; font-size: 13px; font-weight: 600; }
-.c-top .ep-langs a { color: #8b86a3; }
+.c-top .ep-langs a { color: #6f6a88; }
 .c-top .ep-langs a:hover, .c-top .ep-langs a.on { color: #1e1b2e; }
 
 .c-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; max-width: 560px; width: 100%; }
@@ -36,7 +36,7 @@ body.ep-theme-classic {
 .c-main .ep-actions a:first-child { background: #1e1b2e; color: #fff; }
 .c-main .ep-actions a:last-child { border: 1px solid #cfcae3; color: #1e1b2e; }
 
-.c-bottom { display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 16px; font-size: 12.5px; color: #8b86a3; text-align: center; }
+.c-bottom { display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 16px; font-size: 12.5px; color: #6f6a88; text-align: center; }
 .c-bottom .ep-menu { gap: 6px 16px; }
 .c-bottom a { color: #5d5875; text-decoration: none; }
 .c-bottom a:hover { color: #1e1b2e; }

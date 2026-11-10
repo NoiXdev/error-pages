@@ -78,10 +78,15 @@
       if (safeHref(href)) node.setAttribute('href', href);
     });
     each('[data-lang]', function (node) {
-      var on = node.getAttribute('data-lang') === lang;
-      node.classList.toggle('on', on);
-      if (on) node.setAttribute('aria-current', 'true');
-      else node.removeAttribute('aria-current');
+      if (node.getAttribute('data-lang') === lang) {
+        node.classList.add('on');
+        node.setAttribute('aria-current', 'true');
+      } else {
+        // Drop the attribute rather than leave class="" behind.
+        node.classList.remove('on');
+        if (!node.classList.length) node.removeAttribute('class');
+        node.removeAttribute('aria-current');
+      }
     });
     var title = t(lang, 'pages.' + root.getAttribute('data-page') + '.title');
     if (title) document.title = root.getAttribute('data-code') + ' · ' + title;
